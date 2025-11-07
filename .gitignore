@@ -45,6 +45,9 @@ Thumbs.db
 *.bak
 *.swp
 
+# Project documents
+DocuMind_Voice_Final_Project_Summary.pdf
+
 # Allow source code and config templates
 !src/
 !config/config.py
