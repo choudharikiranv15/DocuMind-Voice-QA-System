@@ -1,0 +1,60 @@
+# Core RAG System Dependencies (Python 3.11 + Windows Compatible)
+chromadb==0.4.22
+sentence-transformers>=2.3.0
+huggingface-hub>=0.20.0
+transformers>=4.35.0
+tokenizers>=0.15.0
+
+# PyTorch for Python 3.11 + Windows
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# PDF Processing
+PyMuPDF>=1.23.0
+pdfplumber>=0.10.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# Data Processing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# LLM API
+groq>=0.30.0
+
+# Environment & Config
+python-dotenv>=1.0.0
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+werkzeug>=3.0.0
+
+# Voice Processing - Primary
+gtts>=2.5.0
+pydub>=0.25.0
+
+# Voice Processing - Fallback Options
+openai>=1.0.0  # OpenAI Whisper API fallback
+SpeechRecognition>=3.10.0  # Google SR fallback (free)
+pyaudio>=0.2.13  # For audio recording (optional)
+
+# Authentication & Security
+flask-jwt-extended>=4.6.0
+flask-bcrypt>=1.0.1
+flask-sqlalchemy>=3.1.1
+psycopg2-binary>=2.9.9
+
+# Caching & Sessions
+redis>=5.0.0
+flask-session>=0.5.0
+
+# Utilities
+tqdm>=4.65.0
+opencv-python>=4.8.0
+matplotlib>=3.8.0
+scikit-learn>=1.3.0
+
+# Compatible protobuf version
+protobuf>=4.25.0

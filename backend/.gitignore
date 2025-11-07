@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+rag_env/
+.env
+
+# Data
+/data/pdfs/*
+/data/audio/*
+/data/chroma_db/*
+!data/pdfs/.gitkeep
+!data/audio/.gitkeep
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
