@@ -27,7 +27,7 @@ os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
 
 # Initialize systems
 rag_system = RAGSystem(Config())
-stt_handler = STTHandler(model_size="base")  # base model for speed
+stt_handler = STTHandler()  # Uses Groq Whisper API
 tts_handler = TTSHandler(output_dir=app.config['AUDIO_FOLDER'])
 
 # Store conversation history per session
