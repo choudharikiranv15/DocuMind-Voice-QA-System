@@ -12,6 +12,14 @@ venv/
 .env
 config/.env
 
+# Node modules (frontend dependencies)
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/dist/
+frontend/build/
+
 # Data files
 /data/
 !data/pdfs/  # Allow the folder, but not its contents
@@ -44,9 +52,22 @@ Thumbs.db
 # Misc
 *.bak
 *.swp
+nul
+
+# Claude Code configuration
+.claude/
+
+# Sample/test files
+img/
+test_*.py
+list_*.py
+verify_*.py
 
 # Project documents
 DocuMind_Voice_Final_Project_Summary.pdf
+
+# Documentation (keeping only README.md)
+docs/
 
 # Allow source code and config templates
 !src/
