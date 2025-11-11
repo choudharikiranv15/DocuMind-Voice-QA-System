@@ -16,12 +16,19 @@ pdfplumber>=0.10.0
 pytesseract>=0.3.10
 Pillow>=10.0.0
 
+# Advanced Table Extraction
+camelot-py[cv]>=0.11.0  # Camelot for high-quality table extraction
+tabula-py>=2.9.0  # Tabula as fallback
+opencv-python>=4.8.0  # Required by Camelot
+ghostscript>=0.7  # Required by Camelot
+
 # Data Processing
 pandas>=1.5.0
 numpy>=1.24.0
 
 # LLM API
 groq>=0.30.0
+google-generativeai>=0.3.0  # Gemini Vision API
 
 # Environment & Config
 python-dotenv>=1.0.0
@@ -30,12 +37,15 @@ python-dotenv>=1.0.0
 flask>=3.0.0
 flask-cors>=4.0.0
 werkzeug>=3.0.0
+gunicorn>=21.2.0  # Production WSGI server
+httpx>=0.25.0  # HTTP client for async requests
 
-# Voice Processing - Primary
-gtts>=2.5.0
+# Voice Processing - TTS
+TTS>=0.22.0  # Coqui TTS (VITS) - High quality neural TTS
+gtts>=2.5.0  # gTTS fallback
 pydub>=0.25.0
 
-# Voice Processing - Fallback Options
+# Voice Processing - STT Fallback Options
 openai>=1.0.0  # OpenAI Whisper API fallback
 SpeechRecognition>=3.10.0  # Google SR fallback (free)
 pyaudio>=0.2.13  # For audio recording (optional)
@@ -45,9 +55,14 @@ flask-jwt-extended>=4.6.0
 flask-bcrypt>=1.0.1
 flask-sqlalchemy>=3.1.1
 psycopg2-binary>=2.9.9
+supabase>=2.3.0
+pyjwt>=2.8.0
+bcrypt>=4.1.0
 
 # Caching & Sessions
-redis>=5.0.0
+redis>=5.0.0  # Local Redis client
+upstash-redis>=1.5.0  # Upstash serverless Redis client
+hiredis>=3.0.0  # C parser for improved performance
 flask-session>=0.5.0
 
 # Utilities

@@ -6,12 +6,19 @@ load_dotenv()
 
 
 class Config:
-    # API Keys
+    # API Keys - Primary
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+    # API Keys - LLM Fallbacks
+    SAMBANOVA_API_KEY = os.getenv("SAMBANOVA_API_KEY")
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
 
     # Model Configuration
     EMBEDDING_MODEL = "all-MiniLM-L6-v2"
     LLM_MODEL = "llama-3.1-8b-instant"  # Groq model
+    GEMINI_VISION_MODEL = "models/gemini-2.0-flash"  # Gemini Vision for image understanding
 
     # Vector Database
     VECTOR_DB_PATH = "./data/chroma_db"
@@ -28,4 +35,22 @@ class Config:
 
     # Paths
     PDF_UPLOAD_DIR = "./data/pdfs"
+    UPLOAD_FOLDER = "./data/pdfs"  # Alias for PDF_UPLOAD_DIR (used by image extraction)
     PROCESSED_DATA_DIR = "./data/processed"
+
+    # Redis Configuration (Dual Support: Upstash + Local)
+    # Upstash (Production - Serverless)
+    UPSTASH_REDIS_REST_URL = os.getenv("UPSTASH_REDIS_REST_URL")
+    UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+
+    # Local Redis (Development - Optional)
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+    REDIS_DB = int(os.getenv("REDIS_DB", 0))
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+    # Cache Settings
+    QUERY_CACHE_TTL = int(os.getenv("QUERY_CACHE_TTL", 3600))  # 1 hour
+    SESSION_TTL = int(os.getenv("SESSION_TTL", 86400))  # 24 hours
+    RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", 100))  # requests per window
+    RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", 3600))  # 1 hour

@@ -2,37 +2,64 @@
 from groq import Groq
 from typing import List, Dict, Any
 import logging
+from src.llm_fallback_handler import LLMFallbackHandler
 
 class LLMHandler:
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.conversation_history = []
+
+        # Initialize fallback handler (supports Groq + 3 fallbacks)
+        try:
+            self.fallback_handler = LLMFallbackHandler(config)
+            self.client = None  # Will use fallback_handler instead
+            self.logger.info("LLM Handler initialized with fallback support")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize fallback handler: {e}")
+            # Fallback to direct Groq if everything fails
+            if not config.GROQ_API_KEY:
+                self.logger.error("GROQ_API_KEY is not set. Please add your API key to the .env file.")
+                self.client = None
+                self.fallback_handler = None
+            else:
+                self.client = Groq(api_key=config.GROQ_API_KEY)
+                self.fallback_handler = None
         
-        # Check if API key is available
-        if not config.GROQ_API_KEY:
-            self.logger.error("GROQ_API_KEY is not set. Please add your API key to the .env file.")
-            self.client = None
-        else:
-            self.client = Groq(api_key=config.GROQ_API_KEY)
-        
-    def generate_response(self, query: str, context_docs: List[Dict[str, Any]], 
+    def generate_response(self, query: str, context_docs: List[Dict[str, Any]],
                          conversation_history: List[str] = None) -> Dict[str, Any]:
         """Generate response using retrieved context"""
-        
+
+        # DEBUG: Log context docs received
+        self.logger.info(f"🔍 LLM received {len(context_docs)} context docs")
+        for i, doc in enumerate(context_docs[:3]):  # Log first 3
+            self.logger.info(f"   Doc {i+1}: type={doc['metadata'].get('chunk_type')}, page={doc['metadata'].get('page_number')}")
+            content_preview = doc['content'][:200].replace('\n', ' ')
+            self.logger.info(f"   Content preview: {content_preview}...")
+
         # Prepare context from retrieved documents
         context_text = self._prepare_context(context_docs)
-        
+
+        # DEBUG: Log if image analysis is present in context
+        if "📷" in context_text or "Visual Content" in context_text:
+            self.logger.info("✅ IMAGE ANALYSIS DETECTED IN CONTEXT - LLM should see this!")
+            # Log a snippet of the image analysis
+            for line in context_text.split('\n'):
+                if "📷" in line or "Visual Content" in line:
+                    self.logger.info(f"   Image line: {line[:150]}")
+        else:
+            self.logger.warning("⚠️ NO IMAGE ANALYSIS IN CONTEXT - Images not reaching LLM!")
+
         # Build conversation context
         conversation_context = self._build_conversation_context(conversation_history)
-        
+
         # Create prompt
         prompt = self._create_prompt(query, context_text, conversation_context)
         
         try:
-            # Check if client is initialized
-            if self.client is None:
-                error_message = "ERROR: Groq API key is not set or is invalid. Please add a valid API key to the .env file."
+            # Check if fallback handler is available
+            if self.fallback_handler is None and self.client is None:
+                error_message = "ERROR: No LLM provider is available. Please check your API keys in the .env file."
                 self.logger.error(error_message)
                 return {
                     'answer': error_message,
@@ -41,21 +68,44 @@ class LLMHandler:
                     'confidence': 0.0,
                     'error': True
                 }
-                
-            # Generate response
-            response = self.client.chat.completions.create(
-                model=self.config.LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1000,
-                top_p=1,
-                stream=False
-            )
-            
-            answer = response.choices[0].message.content
+
+            # Use fallback handler if available (preferred)
+            if self.fallback_handler:
+                # Build conversation history for fallback handler
+                conv_history = []
+                if conversation_history:
+                    conv_history = conversation_history
+
+                # Use fallback handler with automatic provider cascade
+                result = self.fallback_handler.query_text(
+                    question=prompt,
+                    conversation_history=conv_history,
+                    system_prompt=self._get_system_prompt(),
+                    max_tokens=800
+                )
+
+                if result['success']:
+                    answer = result['answer']
+                    self.logger.info(f"✅ Response generated by {result['provider']} ({result['model']})")
+                else:
+                    answer = result['answer']  # Will contain error message
+                    self.logger.error(f"❌ All providers failed: {result.get('error', 'Unknown error')}")
+
+            else:
+                # Fallback to direct Groq (legacy mode)
+                response = self.client.chat.completions.create(
+                    model=self.config.LLM_MODEL,
+                    messages=[
+                        {"role": "system", "content": self._get_system_prompt()},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=800,
+                    top_p=1,
+                    stream=False
+                )
+                answer = response.choices[0].message.content
+                self.logger.info("✅ Response generated by Groq (direct mode)")
             
             # Update conversation history
             self.conversation_history.append(f"User: {query}")
@@ -79,19 +129,38 @@ class LLMHandler:
             }
     
     def _prepare_context(self, context_docs: List[Dict[str, Any]]) -> str:
-        """Prepare context from retrieved documents"""
+        """Prepare context from retrieved documents with smart truncation"""
         context_parts = []
-        
+        max_context_tokens = 4000  # Leave room for system prompt, query, and response
+        estimated_tokens = 0
+
         for i, doc in enumerate(context_docs, 1):
             content = doc['content']
             metadata = doc['metadata']
-            
+
+            # Estimate tokens (rough: 1 token ≈ 4 characters)
+            content_tokens = len(content) // 4
+
+            # If this chunk would exceed limit, truncate it
+            if estimated_tokens + content_tokens > max_context_tokens:
+                remaining_tokens = max_context_tokens - estimated_tokens
+                if remaining_tokens > 100:  # Only include if we can fit meaningful content
+                    content = content[:remaining_tokens * 4] + "... [truncated]"
+                    content_tokens = remaining_tokens
+                else:
+                    break  # Stop adding more chunks
+
             context_part = f"""
             SOURCE {i} (Page {metadata['page_number']}, Type: {metadata['chunk_type']}):
             {content}
             """
             context_parts.append(context_part)
-        
+            estimated_tokens += content_tokens
+
+            # Stop if we're approaching the limit
+            if estimated_tokens >= max_context_tokens:
+                break
+
         return "\n".join(context_parts)
     
     def _build_conversation_context(self, conversation_history: List[str]) -> str:
@@ -103,83 +172,58 @@ class LLMHandler:
     
     def _create_prompt(self, query: str, context_text: str, conversation_context: str) -> str:
         """Create the complete prompt"""
-        prompt = f"""
-        {conversation_context}
-        
-        CONTEXT FROM DOCUMENTS:
-        {context_text}
-        
-        USER QUESTION: {query}
-        
-        INSTRUCTIONS:
-        Provide a well-structured, ChatGPT-style response with:
-        1. A brief introductory paragraph
-        2. Clear section headers (## for main sections, ### for subsections)
-        3. Bullet points for lists
-        4. **Bold** for emphasis on key terms
-        5. Proper spacing between sections
-        6. Natural, conversational language
-        7. Page citations where relevant
-        
-        Format your response in clean markdown. Make it easy to read and scan.
-        """
-        
+        prompt = f"""CONTEXT FROM DOCUMENTS:
+{context_text}
+
+USER QUESTION: {query}
+
+ANSWER THE QUESTION USING ONLY THE CONTEXT ABOVE. IF THE ANSWER IS NOT IN THE CONTEXT, SAY: "I cannot find this information in the uploaded document(s)."
+"""
+
         return prompt
     
     def _get_system_prompt(self) -> str:
         """Get system prompt for the LLM"""
-        return """
-        You are an intelligent document assistant similar to ChatGPT. You help users find information from PDF documents.
-        You have access to content extracted from PDFs including text, tables, and images (via OCR).
-        
-        IMPORTANT - Response Formatting Rules:
-        1. Structure your response like ChatGPT with clear sections:
-           - Start with a brief introduction paragraph
-           - Use ## for main section headers
-           - Use ### for subsections
-           - Use clear paragraphs between sections
-           
-        2. Formatting guidelines:
-           - Use **bold** for key terms and emphasis
-           - Use bullet points with • for lists
-           - Use numbered lists (1., 2., 3.) for sequential steps
-           - Leave blank lines between sections for readability
-           - Use > for important notes or quotes
-           
-        3. Content presentation:
-           - Write in a natural, conversational tone
-           - Break complex information into digestible sections
-           - If presenting data from tables, format as markdown tables
-           - For images, note with 📷 "Information from image"
-           - Cite page numbers naturally: "(Page 3)" or "as mentioned on page 5"
-           
-        4. Quality standards:
-           - Be concise but comprehensive
-           - Avoid repetition
-           - Don't use excessive symbols or asterisks
-           - Make responses scannable with good structure
-           - End with a brief summary if the answer is long
-        
-        Example response structure:
-        
-        Based on the documents, here's what I found about [topic]:
-        
-        ## Main Finding
-        
-        [Clear paragraph explaining the main point]
-        
-        ## Key Details
-        
-        • **Point 1**: Description
-        • **Point 2**: Description
-        • **Point 3**: Description
-        
-        ## Additional Information
-        
-        [Supporting details in paragraph form]
-        
-        > Note: This information is from page X of the document.
-        """
+        return """You are a document Q&A assistant with VISION CAPABILITIES. Follow these rules STRICTLY:
+
+RULE 1 - NEVER HALLUCINATE:
+You can ONLY answer from the "CONTEXT FROM DOCUMENTS" in the user message. The context includes:
+- Text content from PDFs
+- **📷 Visual Content Found** sections with AI-analyzed image descriptions
+- Table data and structured information
+
+If the context doesn't have the answer, respond EXACTLY: "I cannot find this information in the uploaded document(s)."
+
+RULE 2 - USE IMAGE ANALYSIS:
+When you see "📷 Figure on Page X" or "Visual Content Found" sections:
+- These are AI-generated descriptions of images, diagrams, chemical structures, and figures from the PDF
+- Use this visual information to answer questions about figures, diagrams, images, and illustrations
+- Cite the page numbers when referencing visual content
+
+RULE 3 - MATCH ANSWER LENGTH TO QUESTION TYPE:
+- "What is X?" or "Who is Y?" → 2-4 sentences max, NO headers
+- "Explain X" or "How does Y work?" → Detailed with ## headers and ### subheaders
+- "Show me figure X" or "Describe image Y" → Use the image analysis from context
+- "List the types of X" → Bullet list or table
+
+RULE 4 - FORMAT PROPERLY:
+- Use **bold** for key terms
+- Simple questions: Just a paragraph (NO headers)
+- Complex questions: Use ## and ### headers
+- Tables for tech stacks/comparisons/specs
+- Always cite page numbers for figures/images
+
+EXAMPLES:
+
+Q: "What is photosynthesis?"
+A: **Photosynthesis** is the process by which plants convert light energy into chemical energy, producing glucose and oxygen from carbon dioxide and water.
+
+Q: "Explain figure 10.2"
+A: Based on the image analysis from **Page 73**, Figure 10.2 shows [describe based on the 📷 Visual Content Found section in context]
+
+Q: "Describe the chemical structure in the diagram"
+A: According to the visual analysis from the PDF, the chemical structure shows [describe based on image analysis in context, citing page number]
+"""
     
     def _calculate_confidence(self, context_docs: List[Dict[str, Any]]) -> float:
         """Calculate confidence score based on retrieved context"""

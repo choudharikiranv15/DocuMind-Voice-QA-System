@@ -9,33 +9,49 @@ class SmartRetriever:
         self.vector_store = vector_store
         self.config = config
         
-    def retrieve(self, query: str, context_history: List[str] = None) -> Dict[str, Any]:
-        """Intelligent retrieval with context awareness"""
-        
+    def retrieve(self, query: str, context_history: List[str] = None, document_filter: str = None, user_id: str = None) -> Dict[str, Any]:
+        """Intelligent retrieval with context awareness and user filtering"""
+
         # Enhance query with context if available
         enhanced_query = self._enhance_query_with_context(query, context_history)
-        
+
         # Detect query type
         query_type = self._detect_query_type(query)
-        
-        # Perform search
+
+        # Perform search with user filtering (ChromaDB returns nested lists)
         search_results = self.vector_store.search(
-            enhanced_query, 
-            n_results=self.config.TOP_K_RESULTS * 2  # Get more for filtering
+            enhanced_query,
+            n_results=self.config.TOP_K_RESULTS * 2,  # Get more for filtering
+            document_filter=document_filter,
+            user_id=user_id
         )
-        
+
+        # Flatten ChromaDB nested results if needed
+        flattened_results = self._flatten_chroma_results(search_results)
+
         # Filter and rank results based on query type
-        filtered_results = self._filter_by_query_type(search_results, query_type)
-        
+        filtered_results = self._filter_by_query_type(flattened_results, query_type)
+
         # Re-rank results
         ranked_results = self._rerank_results(filtered_results, query, query_type)
-        
+
         return {
             'query': query,
             'query_type': query_type,
             'results': ranked_results[:self.config.TOP_K_RESULTS],
-            'total_found': len(search_results['documents'])
+            'total_found': len(flattened_results['documents'])
         }
+
+    def _flatten_chroma_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """Flatten ChromaDB nested list results to simple lists"""
+        # ChromaDB returns [[doc1, doc2]] format, we need [doc1, doc2]
+        if results['documents'] and isinstance(results['documents'][0], list):
+            return {
+                'documents': results['documents'][0],
+                'metadatas': results['metadatas'][0],
+                'distances': results['distances'][0]
+            }
+        return results
     
     def _enhance_query_with_context(self, query: str, context_history: List[str]) -> str:
         """Enhance query with conversation context"""

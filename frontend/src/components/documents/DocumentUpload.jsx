@@ -43,12 +43,17 @@ export default function DocumentUpload() {
         }
 
         setUploading(true)
-        const loadingToast = toast.loading('Uploading document...')
+        const loadingToast = toast.loading('Uploading and processing document...')
 
         try {
             const result = await uploadDocument(file)
             addDocument(result)
-            toast.success('Document uploaded successfully!', { id: loadingToast })
+
+            // Refresh the document list from backend
+            const fetchDocuments = useDocumentStore.getState().fetchDocuments
+            await fetchDocuments()
+
+            toast.success('Document uploaded and indexed!', { id: loadingToast })
         } catch (error) {
             toast.error(error.message || 'Failed to upload document', { id: loadingToast })
         } finally {

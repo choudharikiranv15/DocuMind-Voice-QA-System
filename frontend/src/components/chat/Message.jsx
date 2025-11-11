@@ -1,4 +1,6 @@
 import AudioPlayer from '../voice/AudioPlayer'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export default function Message({ message }) {
     const isUser = message.role === 'user'
@@ -26,11 +28,102 @@ export default function Message({ message }) {
                     }
         `}>
                     {/* Text */}
-                    <div className="prose prose-sm max-w-none">
-                        <p className={`leading-relaxed ${isUser ? 'text-white' : 'text-gray-100'}`}>
-                            {message.text}
-                        </p>
-                    </div>
+                    {isUser ? (
+                        <div className="prose prose-sm max-w-none">
+                            <p className="leading-relaxed text-white">
+                                {message.text}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="markdown-content">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    // Headings
+                                    h1: ({ node, ...props }) => (
+                                        <h1 className="text-2xl font-bold text-indigo-400 mb-3 mt-4 flex items-center gap-2" {...props} />
+                                    ),
+                                    h2: ({ node, ...props }) => (
+                                        <h2 className="text-xl font-semibold text-indigo-400 mb-2 mt-4 flex items-center gap-2" {...props} />
+                                    ),
+                                    h3: ({ node, ...props }) => (
+                                        <h3 className="text-lg font-semibold text-purple-400 mb-2 mt-3" {...props} />
+                                    ),
+
+                                    // Paragraphs
+                                    p: ({ node, ...props }) => (
+                                        <p className="text-gray-100 leading-relaxed mb-3" {...props} />
+                                    ),
+
+                                    // Lists
+                                    ul: ({ node, ...props }) => (
+                                        <ul className="list-disc list-inside space-y-1 mb-3 text-gray-100" {...props} />
+                                    ),
+                                    ol: ({ node, ...props }) => (
+                                        <ol className="list-decimal list-inside space-y-1 mb-3 text-gray-100" {...props} />
+                                    ),
+                                    li: ({ node, ...props }) => (
+                                        <li className="ml-4" {...props} />
+                                    ),
+
+                                    // Tables
+                                    table: ({ node, ...props }) => (
+                                        <div className="overflow-x-auto mb-4 rounded-lg">
+                                            <table className="min-w-full divide-y divide-gray-700" {...props} />
+                                        </div>
+                                    ),
+                                    thead: ({ node, ...props }) => (
+                                        <thead className="bg-indigo-600/20" {...props} />
+                                    ),
+                                    tbody: ({ node, ...props }) => (
+                                        <tbody className="divide-y divide-gray-700" {...props} />
+                                    ),
+                                    tr: ({ node, ...props }) => (
+                                        <tr className="hover:bg-gray-800/50 transition-colors" {...props} />
+                                    ),
+                                    th: ({ node, ...props }) => (
+                                        <th className="px-4 py-2 text-left text-sm font-semibold text-indigo-300" {...props} />
+                                    ),
+                                    td: ({ node, ...props }) => (
+                                        <td className="px-4 py-2 text-sm text-gray-200" {...props} />
+                                    ),
+
+                                    // Code
+                                    code: ({ node, inline, ...props }) =>
+                                        inline ? (
+                                            <code className="bg-gray-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
+                                        ) : (
+                                            <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono mb-3" {...props} />
+                                        ),
+                                    pre: ({ node, ...props }) => (
+                                        <pre className="bg-gray-900 rounded-lg overflow-hidden mb-3" {...props} />
+                                    ),
+
+                                    // Strong/Bold
+                                    strong: ({ node, ...props }) => (
+                                        <strong className="font-bold text-indigo-300" {...props} />
+                                    ),
+
+                                    // Emphasis/Italic
+                                    em: ({ node, ...props }) => (
+                                        <em className="italic text-purple-300" {...props} />
+                                    ),
+
+                                    // Blockquote
+                                    blockquote: ({ node, ...props }) => (
+                                        <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-3 bg-indigo-500/10 rounded-r-lg" {...props} />
+                                    ),
+
+                                    // Horizontal Rule
+                                    hr: ({ node, ...props }) => (
+                                        <hr className="border-gray-700 my-4" {...props} />
+                                    ),
+                                }}
+                            >
+                                {message.text}
+                            </ReactMarkdown>
+                        </div>
+                    )}
 
                     {/* Audio Player (if message has audio) */}
                     {message.audioUrl && (

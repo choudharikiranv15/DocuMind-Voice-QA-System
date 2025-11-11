@@ -10,6 +10,7 @@ import re
 from typing import List, Dict, Any, Tuple
 import logging
 from dataclasses import dataclass
+from .advanced_table_extractor import AdvancedTableExtractor
 
 @dataclass
 class DocumentChunk:
@@ -22,6 +23,7 @@ class PDFProcessor:
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.table_extractor = AdvancedTableExtractor()  # Use advanced table extraction
         
     def extract_content(self, pdf_path: str) -> List[DocumentChunk]:
         """Extract all content types from PDF"""
@@ -52,21 +54,23 @@ class PDFProcessor:
                         except Exception as e:
                             self.logger.error(f"Error extracting text from page {page_num + 1}: {e}")
                         
-                        # Extract table chunks
-                        try:
-                            table_chunks = self._extract_table_chunks(page_plumber, page_num)
-                            chunks.extend(table_chunks)
-                            self.logger.info(f"Extracted {len(table_chunks)} table chunks from page {page_num + 1}")
-                        except Exception as e:
-                            self.logger.error(f"Error extracting tables from page {page_num + 1}: {e}")
+                        # SKIP table extraction for production speed (tables often extract as garbage)
+                        # If you need table extraction, enable the line below and test thoroughly
+                        # try:
+                        #     table_chunks = self._extract_table_chunks_fast(page_plumber, page_num)
+                        #     chunks.extend(table_chunks)
+                        #     self.logger.info(f"Extracted {len(table_chunks)} table chunks from page {page_num + 1}")
+                        # except Exception as e:
+                        #     self.logger.error(f"Error extracting tables from page {page_num + 1}: {e}")
                         
-                        # Extract image chunks
-                        try:
-                            image_chunks = self._extract_image_chunks(page_fitz, page_num)
-                            chunks.extend(image_chunks)
-                            self.logger.info(f"Extracted {len(image_chunks)} image chunks from page {page_num + 1}")
-                        except Exception as e:
-                            self.logger.error(f"Error extracting images from page {page_num + 1}: {e}")
+                        # SKIP image extraction for production speed (images slow down processing significantly)
+                        # If you need image extraction, enable the line below
+                        # try:
+                        #     image_chunks = self._extract_image_chunks(page_fitz, page_num)
+                        #     chunks.extend(image_chunks)
+                        #     self.logger.info(f"Extracted {len(image_chunks)} image chunks from page {page_num + 1}")
+                        # except Exception as e:
+                        #     self.logger.error(f"Error extracting images from page {page_num + 1}: {e}")
                             
                     except Exception as e:
                         self.logger.error(f"Error processing page {page_num + 1}: {e}")
@@ -114,24 +118,142 @@ class PDFProcessor:
         
         return chunks
     
+    def _extract_table_chunks_advanced(self, pdf_path: str, page_num: int) -> List[DocumentChunk]:
+        """Extract table content using advanced multi-method extraction"""
+        chunks = []
+
+        try:
+            # Use advanced table extractor (Camelot/Tabula/pdfplumber cascade)
+            extracted_tables = self.table_extractor.extract_tables(pdf_path, page_num)
+
+            for table in extracted_tables:
+                # Create multiple representations of the table
+                text_repr = table.text_representation
+                csv_repr = table.csv_representation
+                markdown_repr = table.markdown_representation
+                nl_desc = table.natural_language_description
+
+                # Create comprehensive content
+                content = f"""TABLE {table.table_index + 1} (Extracted with {table.method}, Accuracy: {table.accuracy:.1f}%)
+
+{nl_desc}
+
+STRUCTURED DATA (Text Format):
+{text_repr}
+
+MARKDOWN FORMAT:
+{markdown_repr}
+
+CSV FORMAT:
+{csv_repr}
+"""
+
+                chunks.append(DocumentChunk(
+                    content=content,
+                    chunk_type='table',
+                    page_number=page_num + 1,
+                    metadata={
+                        'table_index': table.table_index,
+                        'rows': len(table.dataframe),
+                        'columns': len(table.dataframe.columns),
+                        'extraction_method': table.method,
+                        'accuracy': table.accuracy,
+                        'bbox': table.bbox,
+                        'has_headers': bool(list(table.dataframe.columns)),
+                    }
+                ))
+
+            return chunks
+
+        except Exception as e:
+            self.logger.warning(f"Advanced table extraction failed: {e}, falling back to basic")
+            # Fallback to basic pdfplumber extraction
+            return []
+
+    def _extract_table_chunks_fast(self, page, page_num: int) -> List[DocumentChunk]:
+        """FAST table extraction using pdfplumber only (optimized for production speed)"""
+        chunks = []
+
+        try:
+            # Extract tables using pdfplumber (10-50x faster than Camelot/Tabula)
+            tables = page.extract_tables()
+
+            if not tables:
+                return []
+
+            for table_idx, table_data in enumerate(tables):
+                if not table_data or len(table_data) < 2:  # Skip empty or single-row tables
+                    continue
+
+                try:
+                    # Convert to dataframe
+                    df = pd.DataFrame(table_data[1:], columns=table_data[0])
+
+                    # Clean the dataframe
+                    df = df.dropna(how='all').fillna('')
+
+                    if df.empty or len(df) == 0:
+                        continue
+
+                    # Create markdown representation (good for LLM)
+                    markdown_repr = df.to_markdown(index=False) if hasattr(df, 'to_markdown') else df.to_string(index=False)
+
+                    # Create simple natural language description
+                    nl_desc = f"Table with {len(df)} rows and {len(df.columns)} columns"
+                    if len(df.columns) > 0:
+                        col_names = [str(col) for col in df.columns[:5]]
+                        nl_desc += f". Columns: {', '.join(col_names)}"
+                        if len(df.columns) > 5:
+                            nl_desc += f" and {len(df.columns) - 5} more"
+
+                    # Create content (simplified for speed)
+                    content = f"""TABLE {table_idx + 1}
+
+{nl_desc}
+
+{markdown_repr}
+"""
+
+                    chunks.append(DocumentChunk(
+                        content=content,
+                        chunk_type='table',
+                        page_number=page_num + 1,
+                        metadata={
+                            'table_index': table_idx,
+                            'rows': len(df),
+                            'columns': len(df.columns),
+                            'extraction_method': 'pdfplumber-fast',
+                        }
+                    ))
+
+                except Exception as e:
+                    self.logger.debug(f"Skipped table {table_idx} on page {page_num + 1}: {e}")
+                    continue
+
+            return chunks
+
+        except Exception as e:
+            self.logger.error(f"Error in fast table extraction for page {page_num + 1}: {e}")
+            return []
+
     def _extract_table_chunks(self, page, page_num: int) -> List[DocumentChunk]:
-        """Extract table content"""
+        """Extract table content (basic fallback method)"""
         tables = page.extract_tables()
         chunks = []
-        
+
         for table_idx, table in enumerate(tables):
             if not table:
                 continue
-                
+
             # Convert table to DataFrame for better processing
             df = pd.DataFrame(table[1:], columns=table[0] if table[0] else None)
-            
+
             # Create structured text representation
             table_text = self._table_to_text(df)
-            
+
             # Also create CSV representation
             csv_repr = df.to_csv(index=False)
-            
+
             chunks.append(DocumentChunk(
                 content=f"TABLE DATA:\n{table_text}\n\nCSV FORMAT:\n{csv_repr}",
                 chunk_type='table',
@@ -140,10 +262,11 @@ class PDFProcessor:
                     'table_index': table_idx,
                     'rows': len(df),
                     'columns': len(df.columns) if df.columns is not None else 0,
-                    'table_shape': df.shape
+                    'table_shape': df.shape,
+                    'extraction_method': 'pdfplumber-basic'
                 }
             ))
-        
+
         return chunks
     
     def _extract_image_chunks(self, page, page_num: int) -> List[DocumentChunk]:

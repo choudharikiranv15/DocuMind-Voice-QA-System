@@ -9,6 +9,28 @@ const api = axios.create({
     },
 })
 
+// Request interceptor to add auth token from localStorage
+api.interceptors.request.use(
+    (config) => {
+        // Get token from localStorage
+        const authStorage = localStorage.getItem('auth-storage')
+        if (authStorage) {
+            try {
+                const authData = JSON.parse(authStorage)
+                if (authData.state && authData.state.token) {
+                    config.headers.Authorization = `Bearer ${authData.state.token}`
+                }
+            } catch (error) {
+                console.error('Failed to parse auth data:', error)
+            }
+        }
+        return config
+    },
+    (error) => {
+        return Promise.reject(error)
+    }
+)
+
 // Document APIs
 export const uploadDocument = async (file) => {
     const formData = new FormData()
@@ -31,11 +53,45 @@ export const uploadDocument = async (file) => {
 }
 
 // Chat APIs
-export const askQuestion = async (question) => {
-    const response = await api.post('/ask', { question })
+export const askQuestion = async (question, documentName = null) => {
+    const response = await api.post('/ask', {
+        question,
+        document_name: documentName
+    })
 
     if (!response.data.success) {
         throw new Error(response.data.message || 'Query failed')
+    }
+
+    return response.data
+}
+
+// Document Management APIs
+export const listDocuments = async () => {
+    const response = await api.get('/documents')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to list documents')
+    }
+
+    return response.data.documents
+}
+
+export const deleteDocument = async (documentName) => {
+    const response = await api.delete(`/documents/${encodeURIComponent(documentName)}`)
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to delete document')
+    }
+
+    return response.data
+}
+
+export const clearAllDocuments = async () => {
+    const response = await api.post('/documents/clear-all')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to clear documents')
     }
 
     return response.data
