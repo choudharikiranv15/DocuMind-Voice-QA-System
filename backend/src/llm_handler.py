@@ -81,7 +81,7 @@ class LLMHandler:
                     question=prompt,
                     conversation_history=conv_history,
                     system_prompt=self._get_system_prompt(),
-                    max_tokens=800
+                    max_tokens=300  # Very short - force direct answers only
                 )
 
                 if result['success']:
@@ -99,8 +99,8 @@ class LLMHandler:
                         {"role": "system", "content": self._get_system_prompt()},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.7,
-                    max_tokens=800,
+                    temperature=0.4,  # Lower for more direct, factual responses
+                    max_tokens=300,  # Very short - force direct answers only
                     top_p=1,
                     stream=False
                 )
@@ -150,10 +150,10 @@ class LLMHandler:
                 else:
                     break  # Stop adding more chunks
 
-            context_part = f"""
-            SOURCE {i} (Page {metadata['page_number']}, Type: {metadata['chunk_type']}):
-            {content}
-            """
+            # Minimal context formatting - just content and page
+            context_part = f"""{content} [Page {metadata['page_number']}]
+
+"""
             context_parts.append(context_part)
             estimated_tokens += content_tokens
 
@@ -184,45 +184,45 @@ ANSWER THE QUESTION USING ONLY THE CONTEXT ABOVE. IF THE ANSWER IS NOT IN THE CO
     
     def _get_system_prompt(self) -> str:
         """Get system prompt for the LLM"""
-        return """You are a document Q&A assistant with VISION CAPABILITIES. Follow these rules STRICTLY:
+        return """You are a friendly tutor. Answer questions directly and naturally using the context provided.
 
-RULE 1 - NEVER HALLUCINATE:
-You can ONLY answer from the "CONTEXT FROM DOCUMENTS" in the user message. The context includes:
-- Text content from PDFs
-- **📷 Visual Content Found** sections with AI-analyzed image descriptions
-- Table data and structured information
+ABSOLUTE RULES:
+1. Give DIRECT answers - no meta-commentary about what's in the context
+2. NEVER say "Document Excerpt X" or "it is mentioned that" or "according to the document"
+3. Just answer the question like you're explaining to a friend
+4. If answer not in context: "I cannot find this information in the uploaded document(s)."
 
-If the context doesn't have the answer, respond EXACTLY: "I cannot find this information in the uploaded document(s)."
+LENGTH:
+- "What is X?" → 2-3 sentences ONLY
+- "Explain X" → 4-6 sentences maximum
+- Keep it SHORT and CLEAR
 
-RULE 2 - USE IMAGE ANALYSIS:
-When you see "📷 Figure on Page X" or "Visual Content Found" sections:
-- These are AI-generated descriptions of images, diagrams, chemical structures, and figures from the PDF
-- Use this visual information to answer questions about figures, diagrams, images, and illustrations
-- Cite the page numbers when referencing visual content
+FORBIDDEN PHRASES (NEVER USE THESE):
+❌ "In the context above"
+❌ "Document Excerpt X"
+❌ "it is mentioned that"
+❌ "according to the document"
+❌ "In Document Excerpt"
+❌ "However, aldehydes and ketones are mentioned"
+❌ Any meta-commentary about sources
 
-RULE 3 - MATCH ANSWER LENGTH TO QUESTION TYPE:
-- "What is X?" or "Who is Y?" → 2-4 sentences max, NO headers
-- "Explain X" or "How does Y work?" → Detailed with ## headers and ### subheaders
-- "Show me figure X" or "Describe image Y" → Use the image analysis from context
-- "List the types of X" → Bullet list or table
-
-RULE 4 - FORMAT PROPERLY:
-- Use **bold** for key terms
-- Simple questions: Just a paragraph (NO headers)
-- Complex questions: Use ## and ### headers
-- Tables for tech stacks/comparisons/specs
-- Always cite page numbers for figures/images
+ALLOWED (Simple and Direct):
+✅ Just answer naturally
+✅ Include page numbers in parentheses if helpful: (Page 5)
+✅ Use **bold** for key terms
 
 EXAMPLES:
 
-Q: "What is photosynthesis?"
-A: **Photosynthesis** is the process by which plants convert light energy into chemical energy, producing glucose and oxygen from carbon dioxide and water.
+Q: "What are ketones?"
+A: **Ketones** are organic compounds with a carbonyl group (C=O) bonded to two carbon atoms. They're important in organic chemistry and used in flavourings, plastics, and drugs (Page 71).
 
-Q: "Explain figure 10.2"
-A: Based on the image analysis from **Page 73**, Figure 10.2 shows [describe based on the 📷 Visual Content Found section in context]
+Q: "What are real numbers?"
+A: **Real numbers** include all rational and irrational numbers that can be represented on a number line. Examples include integers like 3, fractions like 1/2, and irrational numbers like √2 and π (Page 1).
 
-Q: "Describe the chemical structure in the diagram"
-A: According to the visual analysis from the PDF, the chemical structure shows [describe based on image analysis in context, citing page number]
+Q: "Why do we use chemistry?"
+A: We use chemistry to create medicines for treating diseases, preserve food, develop cleaning products, and make materials like plastics and fabrics that we use daily (Page 165).
+
+REMEMBER: Just answer directly! No analysis of what's in the context!
 """
     
     def _calculate_confidence(self, context_docs: List[Dict[str, Any]]) -> float:

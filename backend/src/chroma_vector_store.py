@@ -47,13 +47,16 @@ class ChromaVectorStore:
             self.logger.error(f"Failed to create collection: {e}")
             raise
 
-    def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using sentence-transformers"""
+    def _generate_embeddings(self, texts: List[str], batch_size: int = 32) -> List[List[float]]:
+        """Generate embeddings using sentence-transformers with batching for performance"""
         try:
+            # Use batch processing for better performance
             embeddings = self.embedding_model.encode(
                 texts,
+                batch_size=batch_size,
                 show_progress_bar=len(texts) > 10,
-                convert_to_numpy=True
+                convert_to_numpy=True,
+                normalize_embeddings=True  # Normalize for better cosine similarity
             )
             return embeddings.tolist()
         except Exception as e:
@@ -75,10 +78,12 @@ class ChromaVectorStore:
                 chunk_id = f"{user_id}_{document_name}_{i}" if user_id else f"{document_name}_{i}"
 
                 texts.append(chunk.content)
+                # Ensure page_number is stored as integer for proper sorting
+                page_num = getattr(chunk, 'page_number', 1)
                 metadata = {
                     'document_name': document_name,
                     'chunk_type': getattr(chunk, 'chunk_type', 'text'),
-                    'page_number': str(getattr(chunk, 'page_number', 1))
+                    'page_number': int(page_num) if page_num else 1
                 }
                 # Add user_id to metadata for filtering
                 if user_id:
@@ -86,17 +91,25 @@ class ChromaVectorStore:
                 metadatas.append(metadata)
                 ids.append(chunk_id)
 
-            # Generate embeddings
+            # Generate embeddings with optimized batch size
             self.logger.info(f"Generating embeddings for {len(texts)} chunks...")
-            embeddings = self._generate_embeddings(texts)
+            batch_size = min(64, len(texts))  # Adaptive batch size
+            embeddings = self._generate_embeddings(texts, batch_size=batch_size)
 
-            # Add to ChromaDB
-            self.collection.add(
-                embeddings=embeddings,
-                documents=texts,
-                metadatas=metadatas,
-                ids=ids
-            )
+            # Add to ChromaDB in batches to avoid memory issues with large documents
+            CHROMA_BATCH_SIZE = 1000
+            total_added = 0
+
+            for i in range(0, len(texts), CHROMA_BATCH_SIZE):
+                batch_end = min(i + CHROMA_BATCH_SIZE, len(texts))
+                self.collection.add(
+                    embeddings=embeddings[i:batch_end],
+                    documents=texts[i:batch_end],
+                    metadatas=metadatas[i:batch_end],
+                    ids=ids[i:batch_end]
+                )
+                total_added += (batch_end - i)
+                self.logger.info(f"  Added batch: {total_added}/{len(texts)} chunks")
 
             self.logger.info(f"✅ Added {len(chunks)} chunks from '{document_name}'")
             self.logger.info(f"📊 Collection now has {self.collection.count()} total documents")

@@ -1,30 +1,148 @@
-import AudioPlayer from '../voice/AudioPlayer'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import SpotifyAudioPlayer from '../voice/SpotifyAudioPlayer'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { textToSpeech } from '../../services/api'
+import { toast } from 'react-hot-toast'
+import api from '../../services/api'
 
-export default function Message({ message }) {
+export default function Message({ message, query }) {
     const isUser = message.role === 'user'
+    const [audioUrl, setAudioUrl] = useState(message.audioUrl || null)
+    const [isGeneratingAudio, setIsGeneratingAudio] = useState(message.audioGenerating || false)
+    const [audioReady, setAudioReady] = useState(false)
+    const [feedbackGiven, setFeedbackGiven] = useState(null) // 1, -1, or null
+    const pollIntervalRef = useRef(null)
+    const pollAttemptsRef = useRef(0)
+
+    // Poll for audio readiness when audio is generating
+    useEffect(() => {
+        if (isGeneratingAudio && audioUrl && !audioReady) {
+            const checkAudioReady = async () => {
+                try {
+                    // Try to fetch audio file
+                    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+                    const response = await fetch(`${baseUrl}${audioUrl}`, {
+                        method: 'HEAD' // Just check if file exists
+                    })
+
+                    if (response.ok) {
+                        // Audio is ready!
+                        setAudioReady(true)
+                        setIsGeneratingAudio(false)
+                        clearInterval(pollIntervalRef.current)
+                        console.log('✅ Audio ready:', audioUrl)
+                    } else {
+                        pollAttemptsRef.current += 1
+                        // Give up after 40 attempts (20 seconds)
+                        if (pollAttemptsRef.current > 40) {
+                            setIsGeneratingAudio(false)
+                            clearInterval(pollIntervalRef.current)
+                            console.warn('⚠️ Audio generation timeout')
+                        }
+                    }
+                } catch (error) {
+                    pollAttemptsRef.current += 1
+                    if (pollAttemptsRef.current > 40) {
+                        setIsGeneratingAudio(false)
+                        clearInterval(pollIntervalRef.current)
+                    }
+                }
+            }
+
+            // Wait 1 second before starting to poll (give backend time to start generating)
+            const initialDelay = setTimeout(() => {
+                // Poll every 500ms
+                pollIntervalRef.current = setInterval(checkAudioReady, 500)
+            }, 1000)
+
+            // Cleanup on unmount
+            return () => {
+                clearTimeout(initialDelay)
+                if (pollIntervalRef.current) {
+                    clearInterval(pollIntervalRef.current)
+                }
+            }
+        }
+    }, [isGeneratingAudio, audioUrl, audioReady])
+
+    const handleGenerateSpeech = async () => {
+        if (audioUrl && audioReady) {
+            // Toggle audio playback or clear
+            setAudioUrl(null)
+            setAudioReady(false)
+            return
+        }
+
+        // Only generate audio manually if not already provided by backend
+        setIsGeneratingAudio(true)
+        try {
+            const response = await textToSpeech(message.text)
+            setAudioUrl(response.audio_url)
+            setAudioReady(true)
+            toast.success('Audio generated!')
+        } catch (error) {
+            toast.error(error.message || 'Failed to generate audio')
+        } finally {
+            setIsGeneratingAudio(false)
+        }
+    }
+
+    const handleFeedback = async (rating) => {
+        if (feedbackGiven === rating) {
+            // User clicked same button again, remove feedback
+            setFeedbackGiven(null)
+            return
+        }
+
+        try {
+            await api.post('/feedback', {
+                message_id: message.id || `${Date.now()}-${Math.random()}`,
+                query: query || 'No query provided',
+                response: message.text,
+                rating
+            })
+            setFeedbackGiven(rating)
+            toast.success('Thank you for your feedback!')
+        } catch (error) {
+            toast.error('Failed to submit feedback')
+        }
+    }
 
     return (
-        <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6`}
+        >
             <div className={`flex gap-3 max-w-3xl ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                 {/* Avatar */}
-                <div className={`
-          flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold
+                <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+                    className={`
+          flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shadow-lg
           ${isUser
-                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                        : 'bg-gradient-to-br from-purple-500 to-pink-600'
+                        ? 'bg-gradient-to-br from-cyan-500 to-purple-600 shadow-cyan-500/50'
+                        : 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/50'
                     }
         `}>
                     {isUser ? 'U' : 'AI'}
-                </div>
+                </motion.div>
 
                 {/* Message Content */}
-                <div className={`
-          flex-1 rounded-2xl p-4
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.15, duration: 0.3 }}
+                    className={`
+          flex-1 rounded-2xl p-4 backdrop-blur-sm
           ${isUser
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-[#1e293b] border border-gray-800 text-gray-100'
+                        ? 'bg-gradient-to-br from-cyan-600/90 to-purple-600/90 text-white shadow-lg shadow-cyan-500/20'
+                        : 'bg-white/5 border border-white/10 text-gray-100 shadow-lg shadow-purple-500/10'
                     }
         `}>
                     {/* Text */}
@@ -41,10 +159,10 @@ export default function Message({ message }) {
                                 components={{
                                     // Headings
                                     h1: ({ node, ...props }) => (
-                                        <h1 className="text-2xl font-bold text-indigo-400 mb-3 mt-4 flex items-center gap-2" {...props} />
+                                        <h1 className="text-2xl font-bold text-cyan-400 mb-3 mt-4 flex items-center gap-2" {...props} />
                                     ),
                                     h2: ({ node, ...props }) => (
-                                        <h2 className="text-xl font-semibold text-indigo-400 mb-2 mt-4 flex items-center gap-2" {...props} />
+                                        <h2 className="text-xl font-semibold text-cyan-400 mb-2 mt-4 flex items-center gap-2" {...props} />
                                     ),
                                     h3: ({ node, ...props }) => (
                                         <h3 className="text-lg font-semibold text-purple-400 mb-2 mt-3" {...props} />
@@ -73,7 +191,7 @@ export default function Message({ message }) {
                                         </div>
                                     ),
                                     thead: ({ node, ...props }) => (
-                                        <thead className="bg-indigo-600/20" {...props} />
+                                        <thead className="bg-cyan-600/20" {...props} />
                                     ),
                                     tbody: ({ node, ...props }) => (
                                         <tbody className="divide-y divide-gray-700" {...props} />
@@ -82,7 +200,7 @@ export default function Message({ message }) {
                                         <tr className="hover:bg-gray-800/50 transition-colors" {...props} />
                                     ),
                                     th: ({ node, ...props }) => (
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-indigo-300" {...props} />
+                                        <th className="px-4 py-2 text-left text-sm font-semibold text-cyan-300" {...props} />
                                     ),
                                     td: ({ node, ...props }) => (
                                         <td className="px-4 py-2 text-sm text-gray-200" {...props} />
@@ -101,7 +219,7 @@ export default function Message({ message }) {
 
                                     // Strong/Bold
                                     strong: ({ node, ...props }) => (
-                                        <strong className="font-bold text-indigo-300" {...props} />
+                                        <strong className="font-bold text-cyan-300" {...props} />
                                     ),
 
                                     // Emphasis/Italic
@@ -111,7 +229,7 @@ export default function Message({ message }) {
 
                                     // Blockquote
                                     blockquote: ({ node, ...props }) => (
-                                        <blockquote className="border-l-4 border-indigo-500 pl-4 py-2 my-3 bg-indigo-500/10 rounded-r-lg" {...props} />
+                                        <blockquote className="border-l-4 border-cyan-500 pl-4 py-2 my-3 bg-cyan-500/10 rounded-r-lg" {...props} />
                                     ),
 
                                     // Horizontal Rule
@@ -125,11 +243,162 @@ export default function Message({ message }) {
                         </div>
                     )}
 
-                    {/* Audio Player (if message has audio) */}
-                    {message.audioUrl && (
-                        <div className="mt-3">
-                            <AudioPlayer audioUrl={message.audioUrl} />
-                        </div>
+                    {/* TTS Button for AI Messages */}
+                    {!isUser && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3, duration: 0.3 }}
+                            className="mt-3 flex items-center gap-2"
+                        >
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleGenerateSpeech}
+                                disabled={isGeneratingAudio}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white text-sm rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/30"
+                            >
+                                {isGeneratingAudio ? (
+                                    <>
+                                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                        </svg>
+                                        Generating...
+                                    </>
+                                ) : audioUrl ? (
+                                    <>
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M6 6h12v12H6z" />
+                                        </svg>
+                                        Hide Audio
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                                        </svg>
+                                        Listen
+                                    </>
+                                )}
+                            </motion.button>
+                        </motion.div>
+                    )}
+
+                    {/* Audio Player with Spotify Waveforms or Generating Animation */}
+                    {!isUser && (
+                        <AnimatePresence mode="wait">
+                            {isGeneratingAudio && (
+                                <motion.div
+                                    key="generating"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="mt-3 p-4 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg border border-cyan-500/20"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {/* Animated Sound Waves */}
+                                        <div className="flex items-center gap-1">
+                                            {[0, 1, 2, 3, 4].map((i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className="w-1 bg-gradient-to-t from-cyan-500 to-purple-500 rounded-full"
+                                                    animate={{
+                                                        height: [8, 20, 8],
+                                                    }}
+                                                    transition={{
+                                                        duration: 0.8,
+                                                        repeat: Infinity,
+                                                        delay: i * 0.1,
+                                                        ease: "easeInOut"
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Text Animation */}
+                                        <div className="flex-1">
+                                            <motion.div
+                                                className="flex items-center gap-2"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                            >
+                                                <svg className="w-4 h-4 text-cyan-400 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                                                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                                                </svg>
+                                                <span className="text-sm text-cyan-300 font-medium">
+                                                    Synthesizing voice
+                                                    <motion.span
+                                                        animate={{ opacity: [0, 1, 0] }}
+                                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                                    >
+                                                        ...
+                                                    </motion.span>
+                                                </span>
+                                            </motion.div>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                Audio will be ready in a moment
+                                            </p>
+                                        </div>
+
+                                        {/* Spinning Circle Progress */}
+                                        <motion.div
+                                            className="w-8 h-8 rounded-full border-2 border-cyan-500/30 border-t-cyan-500"
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                            {audioReady && audioUrl && (
+                                <motion.div
+                                    key="player"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="mt-3"
+                                >
+                                    <SpotifyAudioPlayer audioUrl={audioUrl} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    )}
+
+                    {/* Feedback Buttons for AI Messages */}
+                    {!isUser && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4, duration: 0.3 }}
+                            className="mt-3 flex items-center gap-2"
+                        >
+                            <span className="text-xs text-gray-500 mr-2">Was this helpful?</span>
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleFeedback(1)}
+                                className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                                    feedbackGiven === 1
+                                        ? 'bg-green-500/30 text-green-400 border border-green-500/50'
+                                        : 'bg-white/5 text-gray-400 hover:bg-green-500/10 hover:text-green-400 border border-white/10'
+                                }`}
+                            >
+                                👍 Helpful
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleFeedback(-1)}
+                                className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+                                    feedbackGiven === -1
+                                        ? 'bg-red-500/30 text-red-400 border border-red-500/50'
+                                        : 'bg-white/5 text-gray-400 hover:bg-red-500/10 hover:text-red-400 border border-white/10'
+                                }`}
+                            >
+                                👎 Not Helpful
+                            </motion.button>
+                        </motion.div>
                     )}
 
                     {/* Metadata */}
@@ -157,11 +426,11 @@ export default function Message({ message }) {
                     )}
 
                     {/* Timestamp */}
-                    <div className={`mt-2 text-xs ${isUser ? 'text-indigo-200' : 'text-gray-500'}`}>
+                    <div className={`mt-2 text-xs ${isUser ? 'text-cyan-200' : 'text-gray-500'}`}>
                         {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
-                </div>
+                </motion.div>
             </div>
-        </div>
+        </motion.div>
     )
 }

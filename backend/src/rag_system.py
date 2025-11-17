@@ -78,25 +78,22 @@ class RAGSystem:
         return any(keyword in question_lower for keyword in image_keywords)
 
     def _enrich_with_images(self, retrieval_results: Dict[str, Any], document_name: str = None, user_id: str = None) -> Dict[str, Any]:
-        """Extract and analyze images from relevant pages using Gemini Vision"""
+        """Extract and analyze images from relevant pages using Gemini Vision with caching"""
         try:
             import fitz  # PyMuPDF
+            import hashlib
 
             # Check if Gemini Vision is available
             if not self.gemini_vision.is_available():
                 self.logger.warning("Gemini Vision not available - skipping image analysis")
                 return retrieval_results
 
-            # Get unique pages from retrieval results
+            # Get unique pages from retrieval results (only closest matches)
             pages_to_extract = set()
-            for result in retrieval_results['results']:
+            for result in retrieval_results['results'][:3]:  # Only top 3 results to reduce extraction
                 page_number = result['metadata'].get('page_number', 1)
-                # Ensure page_number is an integer
                 page_num = int(page_number) - 1  # Convert to 0-indexed
                 pages_to_extract.add(page_num)
-                # Also extract adjacent pages (images might be on nearby pages)
-                pages_to_extract.add(max(0, page_num - 1))
-                pages_to_extract.add(page_num + 1)
 
             self.logger.info(f"🖼️ Extracting and analyzing images from pages: {sorted(pages_to_extract)}")
 
@@ -104,6 +101,17 @@ class RAGSystem:
             pdf_path = self._find_pdf_path(document_name, user_id)
             if not pdf_path:
                 self.logger.warning("Could not find PDF file for image extraction")
+                return retrieval_results
+
+            # Create cache key for this document's images
+            doc_name_for_cache = document_name or os.path.basename(pdf_path).replace('.pdf', '')
+            image_cache_key = f"images:{doc_name_for_cache}:{','.join(map(str, sorted(pages_to_extract)))}"
+
+            # Check cache first
+            cached_images = self.cache.get_cached_query_result(image_cache_key, None)
+            if cached_images:
+                self.logger.info("✅ Using cached image analyses")
+                retrieval_results['results'].insert(0, cached_images)
                 return retrieval_results
 
             # Extract and analyze images from those specific pages
@@ -120,7 +128,8 @@ class RAGSystem:
                 if images:
                     self.logger.info(f"📸 Found {len(images)} images on page {page_num + 1} - analyzing with Gemini Vision...")
 
-                    for img_idx, img in enumerate(images):
+                    # Limit to first 2 images per page to save API calls
+                    for img_idx, img in enumerate(images[:2]):
                         try:
                             # Extract image data
                             xref = img[0]
@@ -161,6 +170,10 @@ class RAGSystem:
                         'source': 'gemini_vision'
                     }
                 }
+
+                # Cache the image result for 1 hour
+                self.cache.cache_query_result(image_cache_key, None, image_result, ttl=3600)
+
                 # Insert at the beginning so LLM sees it first
                 retrieval_results['results'].insert(0, image_result)
                 self.logger.info(f"✅ Added {len(image_analyses)} image analyses to retrieval results")

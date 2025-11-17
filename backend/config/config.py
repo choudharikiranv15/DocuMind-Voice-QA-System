@@ -54,3 +54,6 @@ class Config:
     SESSION_TTL = int(os.getenv("SESSION_TTL", 86400))  # 24 hours
     RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", 100))  # requests per window
     RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", 3600))  # 1 hour
+
+    # TTS (Text-to-Speech) Settings
+    TTS_SPEED_MULTIPLIER = float(os.getenv("TTS_SPEED_MULTIPLIER", 1.25))  # 1.0 = normal, 1.25 = 25% faster, 1.5 = 50% faster

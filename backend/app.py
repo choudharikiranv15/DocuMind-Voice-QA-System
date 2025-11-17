@@ -6,11 +6,15 @@ from werkzeug.utils import secure_filename
 from config.config import Config
 from src.rag_system import RAGSystem
 from src.stt_handler import STTHandler
-from src.coqui_tts_handler import CoquiTTSHandler  # Use Coqui TTS for better quality
+from src.multilingual_tts_handler import MultilingualTTSHandler  # Multilingual TTS (gTTS + Coqui)
 from src.database import Database
 from src.auth.jwt_handler import generate_jwt, verify_jwt
 from src.auth.decorators import require_auth
 from src.limits import UserLimits
+from src.error_tracking import init_sentry, capture_exception, add_breadcrumb, set_user_context
+from src.email_service import get_email_service
+from src.analytics import get_analytics_service
+from src.auth.password_reset import PasswordResetService
 import bcrypt
 import secrets
 import logging
@@ -20,6 +24,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Initialize Sentry for error tracking
+init_sentry(app)
 
 # CORS Configuration for production
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
@@ -43,11 +50,18 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
 
 # Initialize systems
-rag_system = RAGSystem(Config())
+config = Config()
+rag_system = RAGSystem(config)
 stt_handler = STTHandler()  # Uses Groq Whisper API
-tts_handler = CoquiTTSHandler(output_dir=app.config['AUDIO_FOLDER'])  # Coqui TTS with VITS
+tts_handler = MultilingualTTSHandler(
+    output_dir=app.config['AUDIO_FOLDER'],
+    enable_coqui_fallback=True  # gTTS primary, Coqui fallback for English
+)
 db = Database()  # Database connection
 user_limits = UserLimits(rag_system.cache, db)  # User limits manager
+email_service = get_email_service()  # Email service
+analytics = get_analytics_service()  # Analytics service
+password_reset_service = PasswordResetService(rag_system.cache)  # Password reset service
 
 @app.route('/')
 def index():
@@ -61,11 +75,14 @@ def voice_test():
 
 @app.route('/auth/signup', methods=['POST'])
 def signup():
-    """User registration endpoint"""
+    """User registration endpoint with role/occupation"""
     try:
         data = request.json
         email = data.get('email', '').strip().lower()
         password = data.get('password', '').strip()
+        role = data.get('role', '').strip()  # student, professional, researcher, other
+        institution = data.get('institution', '').strip()
+        occupation = data.get('occupation', '').strip()
 
         # Validation
         if not email or not password:
@@ -83,10 +100,14 @@ def signup():
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
         # Create user
-        user = db.create_user(email, password_hash)
+        user = db.create_user(email, password_hash, role, institution, occupation)
 
         # Generate JWT
         token = generate_jwt(user['id'], user['email'])
+
+        # Track signup event
+        analytics.track_signup(user['id'], email, role)
+        add_breadcrumb('User signed up', category='auth', data={'email': email, 'role': role})
 
         return jsonify({
             'success': True,
@@ -94,18 +115,34 @@ def signup():
             'token': token,
             'user': {
                 'id': user['id'],
-                'email': user['email']
+                'email': user['email'],
+                'role': user.get('role'),
+                'institution': user.get('institution')
             }
         })
 
     except Exception as e:
         logger.error(f"Signup error: {str(e)}")
+        capture_exception(e, {'endpoint': 'signup'})
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/auth/login', methods=['POST'])
+@app.route('/auth/login', methods=['GET', 'POST', 'OPTIONS'])
 def login():
     """User login endpoint"""
+    # Handle OPTIONS request (CORS preflight)
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    # Handle GET request (browser navigation/prefetch)
+    if request.method == 'GET':
+        return jsonify({
+            'error': 'Method Not Allowed',
+            'message': 'This is an API endpoint. Please use POST method with credentials.',
+            'endpoint': '/auth/login',
+            'method_required': 'POST'
+        }), 405
+
     try:
         data = request.json
         email = data.get('email', '').strip().lower()
@@ -127,18 +164,25 @@ def login():
         # Generate JWT
         token = generate_jwt(user['id'], user['email'])
 
+        # Track login event
+        analytics.track_login(user['id'], user['email'])
+        add_breadcrumb('User logged in', category='auth', data={'email': user['email']})
+
         return jsonify({
             'success': True,
             'message': 'Login successful',
             'token': token,
             'user': {
                 'id': user['id'],
-                'email': user['email']
+                'email': user['email'],
+                'role': user.get('role'),
+                'is_verified': user.get('is_verified', False)
             }
         })
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
+        capture_exception(e, {'endpoint': 'login'})
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -163,6 +207,151 @@ def get_current_user():
     except Exception as e:
         logger.error(f"Get user error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """Request password reset"""
+    try:
+        data = request.json
+        email = data.get('email', '').strip().lower()
+
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'}), 400
+
+        # Check rate limit
+        is_allowed, request_count = password_reset_service.check_rate_limit(email)
+        if not is_allowed:
+            return jsonify({
+                'success': False,
+                'message': 'Too many password reset requests. Please try again later.'
+            }), 429
+
+        # Generate reset token
+        token = password_reset_service.generate_reset_token(email)
+
+        if token:
+            # Send reset email
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+            reset_link = f"{frontend_url}/reset-password?token={token}"
+            email_service.send_password_reset_email(email, reset_link)
+
+            logger.info(f"Password reset requested for {email}")
+            add_breadcrumb('Password reset requested', category='auth', data={'email': email})
+
+        # Always return success (don't reveal if email exists)
+        return jsonify({
+            'success': True,
+            'message': 'If that email exists, a password reset link has been sent.'
+        })
+
+    except Exception as e:
+        logger.error(f"Forgot password error: {str(e)}")
+        capture_exception(e, {'endpoint': 'forgot_password'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
+@app.route('/auth/reset-password', methods=['POST'])
+def reset_password():
+    """Reset password using token"""
+    try:
+        data = request.json
+        token = data.get('token', '').strip()
+        new_password = data.get('password', '').strip()
+
+        if not token or not new_password:
+            return jsonify({'success': False, 'message': 'Token and password are required'}), 400
+
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'Password must be at least 6 characters'}), 400
+
+        # Hash new password
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Reset password
+        success, message = password_reset_service.reset_password(token, password_hash)
+
+        if success:
+            logger.info("Password reset successful")
+            add_breadcrumb('Password reset completed', category='auth')
+            return jsonify({'success': True, 'message': message})
+        else:
+            return jsonify({'success': False, 'message': message}), 400
+
+    except Exception as e:
+        logger.error(f"Reset password error: {str(e)}")
+        capture_exception(e, {'endpoint': 'reset_password'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
+# ============= FEEDBACK ENDPOINT =============
+
+@app.route('/feedback', methods=['POST'])
+@require_auth
+def submit_feedback():
+    """Submit feedback for an AI response"""
+    try:
+        data = request.json
+        message_id = data.get('message_id')
+        query = data.get('query', '')
+        response = data.get('response', '')
+        rating = data.get('rating')  # 1 or -1
+        comment = data.get('comment', '')
+
+        if not message_id or rating not in [1, -1]:
+            return jsonify({'success': False, 'message': 'Invalid feedback data'}), 400
+
+        # Save feedback
+        success = db.save_feedback(
+            user_id=request.user_id,
+            message_id=message_id,
+            query=query,
+            response=response,
+            rating=rating,
+            comment=comment
+        )
+
+        if success:
+            # Track feedback event
+            analytics.track_feedback(request.user_id, rating, bool(comment))
+            add_breadcrumb('Feedback submitted', category='feedback', data={'rating': rating})
+
+            logger.info(f"Feedback submitted by user {request.user_id}: {rating}")
+            return jsonify({'success': True, 'message': 'Feedback submitted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to save feedback'}), 500
+
+    except Exception as e:
+        logger.error(f"Feedback error: {str(e)}")
+        capture_exception(e, {'endpoint': 'feedback'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============= USER STATS ENDPOINT =============
+
+@app.route('/user/stats', methods=['GET'])
+@require_auth
+def get_user_stats():
+    """Get user statistics"""
+    try:
+        stats = analytics.get_user_stats(request.user_id)
+
+        # Get current plan
+        plan = db.get_user_plan(request.user_id)
+        if plan:
+            stats['plan'] = {
+                'type': plan['plan_type'],
+                'max_documents': plan['max_documents'],
+                'max_queries_per_day': plan['max_queries_per_day']
+            }
+
+        return jsonify({'success': True, 'stats': stats})
+
+    except Exception as e:
+        logger.error(f"Get user stats error: {str(e)}")
+        capture_exception(e, {'endpoint': 'user_stats'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 # ============= END AUTHENTICATION ENDPOINTS =============
 
@@ -238,6 +427,7 @@ def ask_question():
     data = request.json
     question = data.get('question', '').strip()
     document_name = data.get('document_name')  # Optional document filter
+    language = data.get('language', 'auto')  # Optional language for TTS ('auto', 'en', 'hi', 'kn')
 
     if not question:
         return jsonify({'success': False, 'message': 'Please enter a question'})
@@ -282,7 +472,37 @@ def ask_question():
         conversation_history.append(response['answer'])
         rag_system.cache.save_user_conversation(user_id, conversation_history)
 
-        return jsonify({
+        # Generate unique audio ID for this response
+        import hashlib
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+
+        audio_id = hashlib.md5(response['answer'].encode()).hexdigest()[:12]
+        audio_filename = f"auto_{audio_id}.wav"
+        audio_url = f"/audio/{audio_filename}"
+
+        # Use thread pool for better resource management
+        if not hasattr(app, 'tts_executor'):
+            app.tts_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix='tts-worker')
+
+        # Start audio generation in background thread (non-blocking)
+        def generate_audio_background():
+            try:
+                logger.info(f"🎵 Background: Generating audio for response (ID: {audio_id}, language: {language})...")
+                tts_result = tts_handler.synthesize(
+                    response['answer'],
+                    language=language,  # Support multilingual TTS
+                    output_filename=f"auto_{audio_id}"
+                )
+                logger.info(f"✅ Background: Audio ready at {audio_url} ({tts_result.get('engine', 'unknown')})")
+            except Exception as tts_error:
+                logger.error(f"❌ Background: TTS generation failed: {tts_error}")
+                capture_exception(tts_error, {'context': 'background_tts', 'audio_id': audio_id})
+
+        # Submit to thread pool instead of creating new threads
+        app.tts_executor.submit(generate_audio_background)
+
+        result_payload = {
             'success': True,
             'answer': response['answer'],
             'metadata': {
@@ -294,8 +514,15 @@ def ask_question():
             'limits': {
                 'queries_remaining': query_limit['remaining'],
                 'queries_limit': query_limit['limit']
+            },
+            'audio': {
+                'url': audio_url,
+                'generating': True,  # Indicates audio is being generated
+                'audio_id': audio_id
             }
-        })
+        }
+
+        return jsonify(result_payload)
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -380,42 +607,111 @@ def transcribe_audio():
 
 @app.route('/speak', methods=['POST'])
 def text_to_speech():
-    """Convert text to speech"""
+    """Convert text to speech with multilingual support"""
     try:
         data = request.json
         text = data.get('text', '').strip()
-        
+        language = data.get('language', 'auto')  # 'auto', 'en', 'hi', 'kn', etc.
+
         if not text:
             return jsonify({'success': False, 'message': 'No text provided'})
-        
-        logger.info(f"Synthesizing speech for {len(text)} characters")
-        
-        # Synthesize speech
-        result = tts_handler.synthesize(text)
-        
+
+        logger.info(f"Synthesizing speech for {len(text)} characters (language: {language})")
+
+        # Synthesize speech with language support
+        result = tts_handler.synthesize(text, language=language)
+
         return jsonify({
             'success': True,
             'audio_url': f"/audio/{result['filename']}",
             'duration': result['duration'],
-            'filename': result['filename']
+            'filename': result['filename'],
+            'language': result.get('language', 'unknown'),
+            'language_name': result.get('language_name', 'Unknown'),
+            'engine': result.get('engine', 'unknown')
         })
-        
+
     except Exception as e:
         logger.error(f"TTS error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/audio/<filename>', methods=['GET'])
 def serve_audio(filename):
-    """Serve generated audio files"""
+    """Serve generated audio files (supports both WAV and MP3)"""
     try:
         audio_path = os.path.join(app.config['AUDIO_FOLDER'], filename)
         if not os.path.exists(audio_path):
             return jsonify({'success': False, 'message': 'Audio file not found'}), 404
-        
-        return send_file(audio_path, mimetype='audio/wav')
+
+        # Determine MIME type based on extension
+        mimetype = 'audio/mpeg' if filename.endswith('.mp3') else 'audio/wav'
+        return send_file(audio_path, mimetype=mimetype)
     except Exception as e:
         logger.error(f"Audio serve error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/tts/languages', methods=['GET'])
+def get_supported_languages():
+    """Get list of supported TTS languages"""
+    try:
+        languages = tts_handler.get_supported_languages()
+        return jsonify({
+            'success': True,
+            'languages': languages,
+            'total': len(languages)
+        })
+    except Exception as e:
+        logger.error(f"Get languages error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+def cleanup_old_audio_files():
+    """Delete audio files older than 24 hours to save disk space"""
+    try:
+        import time
+        import glob
+
+        audio_folder = app.config['AUDIO_FOLDER']
+        if not os.path.exists(audio_folder):
+            return
+
+        current_time = time.time()
+        max_age = 24 * 3600  # 24 hours in seconds
+        deleted_count = 0
+
+        # Clean up both WAV and MP3 files
+        for pattern in ["*.wav", "*.mp3"]:
+            for audio_file in glob.glob(os.path.join(audio_folder, pattern)):
+                file_age = current_time - os.path.getmtime(audio_file)
+                if file_age > max_age:
+                    try:
+                        os.remove(audio_file)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to delete old audio file {audio_file}: {e}")
+
+        if deleted_count > 0:
+            logger.info(f"🧹 Cleaned up {deleted_count} old audio files")
+    except Exception as e:
+        logger.error(f"Audio cleanup error: {str(e)}")
+
+
+# Schedule audio cleanup on startup and periodically
+import atexit
+from threading import Timer
+
+def schedule_audio_cleanup():
+    """Schedule periodic audio cleanup"""
+    cleanup_old_audio_files()
+    # Schedule next cleanup in 6 hours
+    Timer(6 * 3600, schedule_audio_cleanup).start()
+
+# Run cleanup on startup
+cleanup_old_audio_files()
+
+# Register cleanup on app shutdown
+atexit.register(cleanup_old_audio_files)
 
 @app.route('/voice-query', methods=['POST'])
 @require_auth
@@ -518,8 +814,9 @@ def delete_document(document_name):
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/documents/clear-all', methods=['POST'])
+@require_auth
 def clear_all_documents():
-    """Clear all documents from the vector store"""
+    """Clear all documents from the vector store (requires authentication)"""
     try:
         result = rag_system.clear_all_documents()
         if result['success']:

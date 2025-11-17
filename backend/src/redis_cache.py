@@ -408,22 +408,25 @@ class RedisCacheManager:
                     "reset_at": reset_at
                 }
 
-            # Increment counter
-            # Upstash doesn't support pipelines properly, use individual commands
+            # Increment counter with atomic operations
             if self.mode == "upstash":
+                # Upstash: Use atomic operations
                 new_count = client.incr(rate_key)
-                client.expire(rate_key, window)
-                count = new_count - 1  # new_count is after increment
+                # Only set expiry if this is the first request
+                if new_count == 1:
+                    client.expire(rate_key, window)
+                count = new_count
             else:
-                # Local Redis supports pipelines
+                # Local Redis: Use pipeline for atomic execution
                 pipe = client.pipeline()
                 pipe.incr(rate_key)
                 pipe.expire(rate_key, window)
-                pipe.execute()
+                results = pipe.execute()
+                count = results[0]
 
             return {
                 "allowed": True,
-                "remaining": max_requests - count - 1,
+                "remaining": max_requests - count,
                 "reset_at": int(time.time()) + window
             }
 

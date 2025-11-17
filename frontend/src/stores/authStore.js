@@ -36,9 +36,15 @@ const useAuthStore = create(
       },
 
       // Signup function
-      signup: async (email, password) => {
+      signup: async (email, password, role = '', institution = '', occupation = '') => {
         try {
-          const response = await api.post('/auth/signup', { email, password });
+          const response = await api.post('/auth/signup', {
+            email,
+            password,
+            role,
+            institution,
+            occupation
+          });
 
           if (response.data.success) {
             const { token, user } = response.data;
