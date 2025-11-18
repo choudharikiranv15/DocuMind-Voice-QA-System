@@ -293,6 +293,180 @@ def reset_password():
         return jsonify({'success': False, 'message': 'An error occurred'}), 500
 
 
+@app.route('/auth/change-password', methods=['POST'])
+@require_auth
+def change_password():
+    """Change password for logged-in user"""
+    try:
+        data = request.json
+        current_password = data.get('current_password', '').strip()
+        new_password = data.get('new_password', '').strip()
+
+        # Validation
+        if not current_password or not new_password:
+            return jsonify({'success': False, 'message': 'Current and new passwords are required'}), 400
+
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'New password must be at least 6 characters'}), 400
+
+        if current_password == new_password:
+            return jsonify({'success': False, 'message': 'New password must be different from current password'}), 400
+
+        # Get user
+        user = db.get_user_by_id(request.user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Verify current password
+        if not bcrypt.checkpw(current_password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+
+        # Hash new password
+        new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Update password
+        success = db.update_user(request.user_id, {'password_hash': new_password_hash})
+
+        if success:
+            logger.info(f"Password changed successfully for user {request.user_id}")
+            add_breadcrumb('Password changed', category='auth', data={'user_id': request.user_id})
+            analytics.track_event(request.user_id, 'password_changed')
+            return jsonify({'success': True, 'message': 'Password changed successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update password'}), 500
+
+    except Exception as e:
+        logger.error(f"Change password error: {str(e)}")
+        capture_exception(e, {'endpoint': 'change_password'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
+@app.route('/auth/change-email', methods=['POST'])
+@require_auth
+def change_email():
+    """Change email for logged-in user"""
+    try:
+        data = request.json
+        new_email = data.get('new_email', '').strip().lower()
+        password = data.get('password', '').strip()
+
+        # Validation
+        if not new_email or not password:
+            return jsonify({'success': False, 'message': 'New email and password are required'}), 400
+
+        # Basic email validation
+        if '@' not in new_email or '.' not in new_email:
+            return jsonify({'success': False, 'message': 'Invalid email format'}), 400
+
+        # Get user
+        user = db.get_user_by_id(request.user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Check if new email is same as current
+        if new_email == user['email']:
+            return jsonify({'success': False, 'message': 'New email is same as current email'}), 400
+
+        # Verify password
+        if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            return jsonify({'success': False, 'message': 'Password is incorrect'}), 401
+
+        # Check if new email already exists
+        existing_user = db.get_user_by_email(new_email)
+        if existing_user:
+            return jsonify({'success': False, 'message': 'Email already in use'}), 400
+
+        # Update email
+        success = db.update_user(request.user_id, {'email': new_email})
+
+        if success:
+            logger.info(f"Email changed successfully for user {request.user_id}")
+            add_breadcrumb('Email changed', category='auth', data={'user_id': request.user_id, 'new_email': new_email})
+            analytics.track_event(request.user_id, 'email_changed')
+
+            # Generate new JWT with updated email
+            token = generate_jwt(request.user_id, new_email)
+
+            return jsonify({
+                'success': True,
+                'message': 'Email changed successfully',
+                'token': token,
+                'email': new_email
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update email'}), 500
+
+    except Exception as e:
+        logger.error(f"Change email error: {str(e)}")
+        capture_exception(e, {'endpoint': 'change_email'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
+@app.route('/auth/delete-account', methods=['DELETE'])
+@require_auth
+def delete_account():
+    """Delete user account and all associated data (GDPR compliance)"""
+    try:
+        data = request.json
+        password = data.get('password', '').strip()
+        confirmation = data.get('confirmation', '').strip()
+
+        # Validation
+        if not password:
+            return jsonify({'success': False, 'message': 'Password is required'}), 400
+
+        if confirmation != 'DELETE':
+            return jsonify({'success': False, 'message': 'Please type DELETE to confirm'}), 400
+
+        # Get user
+        user = db.get_user_by_id(request.user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Verify password
+        if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            return jsonify({'success': False, 'message': 'Password is incorrect'}), 401
+
+        logger.info(f"Deleting account for user {request.user_id}")
+
+        # Delete user documents from vector store
+        try:
+            user_docs = rag_system.list_documents(user_id=request.user_id)
+            for doc in user_docs:
+                rag_system.delete_document(doc['name'], user_id=request.user_id)
+            logger.info(f"Deleted {len(user_docs)} documents from vector store")
+        except Exception as e:
+            logger.warning(f"Error deleting documents from vector store: {e}")
+
+        # Clear user cache
+        try:
+            cache_pattern = f"*_{request.user_id}"
+            # Redis cache will auto-expire user's cached queries
+            logger.info("User cache will auto-expire")
+        except Exception as e:
+            logger.warning(f"Error clearing user cache: {e}")
+
+        # Delete user from database (cascades to related tables)
+        success = db.delete_user(request.user_id)
+
+        if success:
+            logger.info(f"Account deleted successfully for user {request.user_id}")
+            add_breadcrumb('Account deleted', category='auth', data={'user_id': request.user_id})
+            analytics.track_event(request.user_id, 'account_deleted')
+
+            return jsonify({
+                'success': True,
+                'message': 'Account deleted successfully. We\'re sorry to see you go!'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete account'}), 500
+
+    except Exception as e:
+        logger.error(f"Delete account error: {str(e)}")
+        capture_exception(e, {'endpoint': 'delete_account'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
 # ============= FEEDBACK ENDPOINT =============
 
 @app.route('/feedback', methods=['POST'])

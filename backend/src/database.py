@@ -98,6 +98,16 @@ class Database:
             logging.error(f"Database error updating user {user_id}: {e}")
             return False
 
+    def delete_user(self, user_id: str) -> bool:
+        """Delete user account (cascades to related tables via ON DELETE CASCADE)"""
+        try:
+            response = self.client.table('users').delete().eq('id', user_id).execute()
+            return bool(response.data)
+        except Exception as e:
+            import logging
+            logging.error(f"Database error deleting user {user_id}: {e}")
+            return False
+
     def save_feedback(self, user_id: str, message_id: str, query: str, response: str, rating: int, comment: str = None) -> bool:
         """Save user feedback for an AI response"""
         try:

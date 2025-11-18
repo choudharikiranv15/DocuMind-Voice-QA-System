@@ -201,4 +201,46 @@ export const updateVoicePreferences = async (preferences) => {
     return response.data
 }
 
+// Account Management APIs
+export const changePassword = async (currentPassword, newPassword) => {
+    const response = await api.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+    })
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to change password')
+    }
+
+    return response.data
+}
+
+export const changeEmail = async (newEmail, password) => {
+    const response = await api.post('/auth/change-email', {
+        new_email: newEmail,
+        password: password
+    })
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to change email')
+    }
+
+    return response.data
+}
+
+export const deleteAccount = async (password, confirmation) => {
+    const response = await api.delete('/auth/delete-account', {
+        data: {
+            password: password,
+            confirmation: confirmation
+        }
+    })
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to delete account')
+    }
+
+    return response.data
+}
+
 export default api

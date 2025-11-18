@@ -5,6 +5,7 @@ import useAuthStore from '../stores/authStore'
 import { useDocumentStore } from '../stores/documentStore'
 import { useChatStore } from '../stores/chatStore'
 import VoicePreferences from '../components/settings/VoicePreferences'
+import AccountManagement from '../components/settings/AccountManagement'
 import toast from 'react-hot-toast'
 
 export default function Profile() {
@@ -372,7 +373,7 @@ export default function Profile() {
                         </div>
                     </motion.div>
 
-                    {/* Voice Preferences (New Section) */}
+                    {/* Voice Preferences */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -381,11 +382,20 @@ export default function Profile() {
                         <VoicePreferences />
                     </motion.div>
 
-                    {/* Actions */}
+                    {/* Account Management (Phase 1) */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.9, duration: 0.6 }}
+                    >
+                        <AccountManagement />
+                    </motion.div>
+
+                    {/* Actions */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.0, duration: 0.6 }}
                         className="flex flex-col sm:flex-row gap-4"
                     >
                         <motion.button
