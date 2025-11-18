@@ -216,11 +216,11 @@ class MultilingualTTSHandler:
             logger.info(f"Synthesizing with gTTS ({language}): {len(text)} characters")
 
             # Improved settings for better pronunciation
-            # Use regional variants for Indian languages for better accent
+            # Use regional variants for Indian languages (not all variants are supported by gTTS)
             lang_variants = {
-                'hi': 'hi-IN',  # Hindi (India)
-                'kn': 'kn-IN',  # Kannada (India) - Better pronunciation
-                'en': 'en-IN'   # English (India) - Indian accent
+                'hi': 'hi',  # Hindi - gTTS doesn't support hi-IN
+                'kn': 'kn',  # Kannada - gTTS doesn't support kn-IN
+                'en': 'en'   # English - gTTS doesn't support en-IN, use generic en
             }
 
             # Get the best language variant

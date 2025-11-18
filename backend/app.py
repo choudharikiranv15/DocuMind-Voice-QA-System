@@ -1324,13 +1324,13 @@ if __name__ == '__main__':
     print("=" * 70)
 
     # Run database migrations automatically
-    print("\n🔄 Checking database migrations...")
+    print("\n[*] Checking database migrations...")
     try:
         from src.migrator import run_migrations
         run_migrations()
-        print("✅ Database migrations completed successfully\n")
+        print("[OK] Database migrations completed successfully\n")
     except Exception as e:
-        print(f"⚠️  Migration check failed: {e}")
+        print(f"[WARN] Migration check failed: {e}")
         print("Continuing with startup...\n")
 
     print("Configuration:")
@@ -1340,7 +1340,7 @@ if __name__ == '__main__':
     print("  Vector Store: ChromaDB (Persistent)")
     print(f"  Redis Cache: {rag_system.cache.mode} ({rag_system.cache.enabled and 'enabled' or 'disabled'})")
     print(f"  Beta Limits: {user_limits.MAX_DOCUMENTS_PER_USER} docs, {user_limits.MAX_QUERIES_PER_DAY} queries/day, {user_limits.MAX_FILE_SIZE_MB}MB files")
-    print("\n🌐 Open your browser at: http://localhost:8080")
+    print("\n[SERVER] Open your browser at: http://localhost:8080")
     print("\nEndpoints:")
     print("  POST /auth/signup - User registration")
     print("  POST /auth/login - User login")

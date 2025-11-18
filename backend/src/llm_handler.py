@@ -184,39 +184,79 @@ class LLMHandler:
     
     def _create_prompt(self, query: str, context_text: str, conversation_context: str) -> str:
         """Create the complete prompt"""
-        prompt = f"""CONTEXT FROM DOCUMENTS:
+        # Detect if question is document-specific or general knowledge
+        is_document_specific = self._is_document_specific_query(query)
+
+        if is_document_specific:
+            # Strict document-only mode for document-specific questions
+            prompt = f"""CONTEXT FROM DOCUMENTS:
 {context_text}
 
 USER QUESTION: {query}
 
 ANSWER THE QUESTION USING ONLY THE CONTEXT ABOVE. IF THE ANSWER IS NOT IN THE CONTEXT, SAY: "I cannot find this information in the uploaded document(s)."
 """
+        else:
+            # General knowledge mode - can use general knowledge but should reference documents if relevant
+            prompt = f"""CONTEXT FROM UPLOADED DOCUMENTS (if relevant):
+{context_text}
+
+USER QUESTION: {query}
+
+INSTRUCTIONS:
+- This is a general knowledge question
+- Answer using your general knowledge first
+- If the uploaded documents contain relevant information, you may mention it briefly at the end
+- Keep your answer concise and focused on the question
+"""
 
         return prompt
+
+    def _is_document_specific_query(self, query: str) -> bool:
+        """Detect if query is asking about document content specifically"""
+        query_lower = query.lower()
+
+        # Document-specific indicators
+        document_indicators = [
+            'in the document', 'in my document', 'in this document',
+            'according to', 'what does the document say',
+            'from the document', 'in the pdf', 'in my pdf',
+            'the document mentions', 'document states',
+            'extract from', 'find in document'
+        ]
+
+        # If any document-specific phrase is found, it's a document query
+        if any(indicator in query_lower for indicator in document_indicators):
+            return True
+
+        # Otherwise, treat as general knowledge query
+        return False
     
     def _get_system_prompt(self) -> str:
         """Get system prompt for the LLM"""
-        return """You are a friendly tutor. Answer questions directly and naturally using the context provided.
+        return """You are a friendly and knowledgeable tutor. Answer questions naturally and directly.
 
-ABSOLUTE RULES:
-1. Give DIRECT answers - no meta-commentary about what's in the context
-2. NEVER say "Document Excerpt X" or "it is mentioned that" or "according to the document"
-3. Just answer the question like you're explaining to a friend
-4. If answer not in context: "I cannot find this information in the uploaded document(s)."
+RESPONSE MODES:
+1. For GENERAL KNOWLEDGE questions: Use your knowledge to give accurate, helpful answers
+2. For DOCUMENT-SPECIFIC questions: Answer strictly from the provided context
+
+STYLE RULES:
+1. Give DIRECT answers - no meta-commentary
+2. NEVER say "Document Excerpt X" or "it is mentioned that"
+3. Answer like you're explaining to a friend
+4. For document queries with no answer: "I cannot find this information in the uploaded document(s)."
 
 LENGTH:
-- "What is X?" → 2-3 sentences ONLY
+- "What is X?" → 2-4 sentences
 - "Explain X" → 4-6 sentences maximum
-- Keep it SHORT and CLEAR
+- Keep answers CONCISE and CLEAR
 
-FORBIDDEN PHRASES (NEVER USE THESE):
+FORBIDDEN PHRASES:
 ❌ "In the context above"
 ❌ "Document Excerpt X"
 ❌ "it is mentioned that"
 ❌ "according to the document"
-❌ "In Document Excerpt"
-❌ "However, aldehydes and ketones are mentioned"
-❌ Any meta-commentary about sources
+❌ Any meta-commentary about sources or context
 
 ALLOWED (Simple and Direct):
 ✅ Just answer naturally
