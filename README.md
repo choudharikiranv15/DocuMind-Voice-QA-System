@@ -21,16 +21,16 @@
 
 ## 📖 Overview
 
-**DocuMind Voice** is an enterprise-grade AI-powered document analysis platform that combines advanced RAG (Retrieval-Augmented Generation) technology with multilingual voice capabilities. Upload PDFs, ask questions in natural language, and receive intelligent responses with voice output in 100+ languages.
+**DocuMind Voice** is an enterprise-grade AI-powered document analysis platform that combines advanced RAG (Retrieval-Augmented Generation) technology with multilingual voice capabilities. Upload PDFs, ask questions in natural language, and receive intelligent responses with voice output in multiple languages.
 
 ### 🎯 Why DocuMind Voice?
 
-- **🚀 Production Ready** - Enterprise features with JWT auth, rate limiting, and analytics
-- **🌍 Truly Multilingual** - 100+ languages with auto-detection
-- **⚡ High Performance** - Optimized for speed with Redis caching and vector embeddings
+- **🚀 Production Ready** - Enterprise features with secure authentication and rate limiting
+- **🌍 Multilingual** - Support for English, Hindi, and Kannada with auto-detection
+- **⚡ High Performance** - Optimized architecture with intelligent caching
 - **🎙️ Complete Voice Pipeline** - End-to-end voice interface (STT → RAG → TTS)
 - **📊 Multimodal** - Extract insights from text, tables, and images
-- **💰 Zero Cost** - Deploy free on Render with all features
+- **🔒 Secure & Scalable** - Built for business applications
 
 ---
 
@@ -51,10 +51,10 @@
 <td width="50%">
 
 ### 🗣️ Multilingual Voice
-- **100+ Languages** - Hindi, Kannada, Tamil, Telugu, etc.
+- **3 Languages** - English, Hindi, Kannada
 - **Auto-Detection** - Automatically detect language from text
-- **Dual TTS Engines** - gTTS (multilingual) + Coqui (high-quality English)
-- **Speech-to-Text** - Groq Whisper with fallbacks
+- **Advanced Neural TTS** - High-quality neural voice synthesis
+- **Speech-to-Text** - AI-powered speech recognition
 - **Adjustable Speed** - Configure speech rate
 
 </td>
@@ -94,14 +94,14 @@ graph TB
     A[User] -->|Upload PDF| B[Frontend - React]
     A -->|Voice/Text Query| B
     B -->|REST API| C[Backend - Flask]
-    C -->|PDF Processing| D[PyMuPDF + Camelot]
-    C -->|Vector Store| E[ChromaDB]
-    C -->|LLM| F[Groq Llama 3.1]
-    C -->|Cache| G[Redis]
-    C -->|Database| H[Supabase]
-    C -->|Vision| I[Gemini API]
-    C -->|TTS| J[gTTS + Coqui]
-    C -->|STT| K[Groq Whisper]
+    C -->|PDF Processing| D[Advanced PDF Engine]
+    C -->|Vector Store| E[Vector Database]
+    C -->|LLM| F[AI Language Model]
+    C -->|Cache| G[Cache Layer]
+    C -->|Database| H[PostgreSQL Database]
+    C -->|Vision| I[Vision AI]
+    C -->|TTS| J[Neural TTS Engine]
+    C -->|STT| K[Speech Recognition]
 
     style A fill:#e1f5ff
     style B fill:#fff3e0
@@ -138,25 +138,25 @@ Flask 3.0 • Python 3.11+ • Gunicorn • JWT • Bcrypt
 <tr>
 <td><strong>AI/ML</strong></td>
 <td>
-Groq (LLM) • Sentence-Transformers • ChromaDB • Gemini Vision
+Advanced LLM • Semantic Embeddings • Vector Database • Vision AI
 </td>
 </tr>
 <tr>
 <td><strong>Voice</strong></td>
 <td>
-Groq Whisper (STT) • gTTS (TTS) • Coqui TTS • Language Detection
+Neural TTS Engine • Speech Recognition • Language Detection
 </td>
 </tr>
 <tr>
 <td><strong>Data</strong></td>
 <td>
-Supabase (PostgreSQL) • Redis (Upstash) • ChromaDB
+PostgreSQL • Redis Cache • Vector Store
 </td>
 </tr>
 <tr>
 <td><strong>Monitoring</strong></td>
 <td>
-Sentry (Errors) • PostHog (Analytics) • Resend (Email)
+Error Tracking • Analytics • Email Service
 </td>
 </tr>
 </table>
@@ -165,100 +165,44 @@ Sentry (Errors) • PostHog (Analytics) • Resend (Email)
 
 ## 🚀 Quick Start
 
-### Prerequisites
+**Prerequisites:** Python 3.11+, Node.js 18+
 
-```bash
-Python 3.11+    # Backend runtime
-Node.js 18+     # Frontend build tool
-Redis           # Optional (for caching)
-```
+1. Clone repository and install dependencies
+2. Configure API keys in `.env` files (backend + frontend)
+3. Run backend: `cd backend && python app.py` (port 8080)
+4. Run frontend: `cd frontend && npm run dev` (port 5173)
 
-### 1️⃣ Clone Repository
-
-```bash
-git clone https://github.com/choudharikiranv15/DocuMind_Voice.git
-cd DocuMind_Voice
-```
-
-### 2️⃣ Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys (see below)
-
-# Run server
-python app.py
-```
-
-✅ Backend running at `http://localhost:8080`
-
-### 3️⃣ Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Set: VITE_API_BASE_URL=http://localhost:8080
-
-# Run development server
-npm run dev
-```
-
-✅ Frontend running at `http://localhost:5173`
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed setup instructions.
 
 ---
 
 ## ⚙️ Environment Configuration
 
-### Required API Keys
+### Required Configuration
 
-| Service | Purpose | Free Tier | Get Key |
-|---------|---------|-----------|---------|
-| **Groq** | LLM (Fast inference) | ✅ Yes | [console.groq.com](https://console.groq.com) |
-| **Gemini** | Vision API | ✅ Yes | [aistudio.google.com](https://aistudio.google.com) |
-| **Supabase** | Database | ✅ Yes | [supabase.com](https://supabase.com) |
-| **Upstash** | Redis Cache | ✅ Yes | [console.upstash.com](https://console.upstash.com) |
+The application requires several API keys and configuration settings. Contact the administrator for access credentials.
 
 ### Backend `.env`
 
 ```env
 # ===== REQUIRED =====
-GROQ_API_KEY=your_groq_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key
+LLM_API_KEY=your_api_key_here
+VISION_API_KEY=your_api_key_here
+DATABASE_URL=your_database_url
+DATABASE_KEY=your_database_key
 SECRET_KEY=your_secret_key_minimum_32_chars
 
-# ===== OPTIONAL (Improves Performance) =====
-UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
-UPSTASH_REDIS_REST_TOKEN=your_upstash_token
-
-# ===== OPTIONAL (LLM Fallbacks) =====
-SAMBANOVA_API_KEY=your_sambanova_key
-OPENROUTER_API_KEY=your_openrouter_key
-HUGGINGFACE_API_TOKEN=your_huggingface_token
+# ===== OPTIONAL (Performance) =====
+CACHE_URL=your_cache_url
+CACHE_TOKEN=your_cache_token
 
 # ===== OPTIONAL (Monitoring) =====
-SENTRY_DSN=your_sentry_dsn
-POSTHOG_API_KEY=your_posthog_key
-RESEND_API_KEY=your_resend_key
+ERROR_TRACKING_DSN=your_dsn_here
+ANALYTICS_KEY=your_key_here
+EMAIL_API_KEY=your_key_here
 
 # ===== CONFIGURATION =====
-TTS_SPEED_MULTIPLIER=1.25
+TTS_SPEED_MULTIPLIER=1.75
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
@@ -324,6 +268,7 @@ Headers: Authorization: Bearer <token>
 
 # Text-to-Speech
 POST /speak
+Headers: Authorization: Bearer <token>
 {
   "text": "Hello world",
   "language": "auto"
@@ -331,91 +276,46 @@ POST /speak
 
 # Get Supported Languages
 GET /tts/languages
-# Returns: { "languages": { "en": "English", "hi": "Hindi", ... } }
+# Returns: { "languages": { "en": "English", "hi": "Hindi", "kn": "Kannada" } }
 ```
 
 ---
 
 ## 🎨 Supported Languages
 
-### Tier 1 (Optimized)
-🌐 **Auto-detect** • 🇬🇧 **English** • 🇮🇳 **Hindi** • 🇮🇳 **Kannada** • 🇮🇳 **Tamil** • 🇮🇳 **Telugu**
+### Available Languages
+🌐 **Auto-detect** • 🇬🇧 **English** • 🇮🇳 **Hindi** • 🇮🇳 **Kannada**
 
-### Tier 2 (Available)
-🇮🇳 Marathi • 🇮🇳 Bengali • 🇮🇳 Gujarati • 🇮🇳 Malayalam • 🇮🇳 Punjabi • 🇮🇳 Urdu
-
-### Plus 100+ More
-Arabic, Spanish, French, German, Japanese, Korean, Chinese, and many more via gTTS
+Our AI-powered system automatically detects the language and provides high-quality neural voice synthesis in all supported languages.
 
 ---
 
-## 📊 Performance Metrics
+## 📊 Performance
 
-### Optimizations Implemented
+### Optimizations
 
-| Optimization | Before | After | Improvement |
-|--------------|--------|-------|-------------|
-| **Document Upload** | 30-45s | 5-8s | **80% faster** |
-| **Image Queries** | 5-7s | 1-2s | **70% faster** |
-| **Cached Queries** | 2-3s | 0.5s | **75% faster** |
-| **DB Operations** | 500-800ms | 100-200ms | **75% faster** |
-
-### Key Features
-- ✅ Thread-pooled TTS generation
-- ✅ Connection pooling for Supabase
-- ✅ Batch embedding generation
-- ✅ Redis query caching (1-hour TTL)
-- ✅ Optimized image extraction
-- ✅ Auto audio file cleanup
+Our platform delivers exceptional performance through:
+- ⚡ Intelligent caching layer
+- ⚡ Optimized document processing
+- ⚡ Parallel processing architecture
+- ⚡ Efficient database operations
+- ⚡ Smart resource management
 
 ---
 
 ## 🚢 Deployment
 
-### Render (Recommended - Free Tier)
+### Production Deployment
+
+Deployment requires proper configuration of environment variables and API credentials.
 
 **Requirements:**
-- Memory: ~350MB (fits in 512MB free tier)
-- Services: Web Service (Backend) + Static Site (Frontend)
+- Python 3.11+ environment
+- Node.js 18+ for frontend build
+- Configured environment variables
+- Database and cache services
 
-**Steps:**
-
-1. **Backend Deployment**
-```bash
-# Build Command
-pip install -r requirements.txt
-
-# Start Command
-gunicorn app:app
-
-# Environment Variables
-# Add all from .env.example
-```
-
-2. **Frontend Deployment**
-```bash
-# Build Command
-npm install && npm run build
-
-# Publish Directory
-dist
-```
-
-3. **Connect Services**
-```bash
-# In frontend .env
-VITE_API_BASE_URL=https://your-backend.onrender.com
-```
-
-### Docker (Alternative)
-
-```bash
-# Build and run
-docker-compose up --build
-
-# Stop
-docker-compose down
-```
+Contact the project administrator for deployment guidelines and credentials.
 
 ---
 
@@ -445,59 +345,30 @@ docker-compose down
 
 ## 🧪 Testing
 
-### Run Backend Tests
-
-```bash
-cd backend
-pip install langdetect colorama
-python test_multilingual_tts.py
-```
-
-**Expected:** ✅ All 7 tests pass
-
-### Manual API Testing
-
-```bash
-# Health check
-curl http://localhost:8080/health
-
-# Get languages
-curl http://localhost:8080/tts/languages
-```
+Contact the development team for testing procedures and documentation.
 
 ---
 
 ## 📖 Documentation
 
-- **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)** - Complete technical documentation
+Additional documentation is available to authorized personnel. Contact the project administrator for access.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] ✅ RAG System with ChromaDB
-- [x] ✅ Multilingual TTS (100+ languages)
-- [x] ✅ JWT Authentication
-- [x] ✅ Usage limits & quotas
-- [x] ✅ Redis caching
-- [x] ✅ Performance optimizations
-- [ ] 🔄 Real-time collaboration
-- [ ] 🔄 Mobile app (React Native)
-- [ ] 🔄 Offline mode (PWA)
-- [ ] 🔄 Custom voice cloning
-- [ ] 🔄 API webhooks
+- [x] ✅ Advanced RAG System
+- [x] ✅ Multilingual Voice Support (3 languages)
+- [x] ✅ Secure Authentication
+- [x] ✅ Usage Management
+- [x] ✅ Performance Optimizations
+- [ ] 🔄 Additional Features (Coming Soon)
 
 ---
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+This is a proprietary business project. For collaboration opportunities, please contact the project owner.
 
 ---
 
@@ -509,15 +380,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-**Powered by:**
-- [Groq](https://groq.com) - Lightning-fast LLM inference
-- [Google Gemini](https://ai.google.dev) - Advanced vision capabilities
-- [Supabase](https://supabase.com) - Backend infrastructure
-- [ChromaDB](https://www.trychroma.com) - Vector database
-- [Sentence-Transformers](https://www.sbert.net) - Semantic embeddings
-
 **Built with:**
-Flask • React • Tailwind CSS • Framer Motion • PyMuPDF • Camelot • gTTS • Coqui TTS
+Flask • React • Tailwind CSS • Framer Motion • Advanced AI Models • Neural Voice Technology
 
 ---
 
@@ -529,6 +393,6 @@ Flask • React • Tailwind CSS • Framer Motion • PyMuPDF • Camelot • g
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Kiran_Choudhari-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/kiranchoudhari-1510m)
 [![Email](https://img.shields.io/badge/Email-Contact-EA4335?style=for-the-badge&logo=gmail)](mailto:choudharikiranv15@gmail.com)
 
-**Status:** ✅ Production Ready | **Version:** 2.0.0 | **Last Updated:** November 2025
+**Status:** ✅ Production Ready | **Version:** 1.0.0-beta | **Last Updated:** January 2025
 
 </div>
