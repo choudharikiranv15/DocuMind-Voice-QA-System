@@ -28,20 +28,11 @@ class MultilingualTTSHandler:
     - And 100+ more via gTTS
     """
 
-    # Language codes supported by gTTS
+    # Language codes supported by gTTS (Limited to 3 languages as per requirements)
     SUPPORTED_LANGUAGES = {
         'en': 'English',
-        'hi': 'Hindi',
         'kn': 'Kannada',
-        'ta': 'Tamil',
-        'te': 'Telugu',
-        'mr': 'Marathi',
-        'bn': 'Bengali',
-        'gu': 'Gujarati',
-        'ml': 'Malayalam',
-        'pa': 'Punjabi',
-        'ur': 'Urdu',
-        # Add more as needed
+        'hi': 'Hindi',
     }
 
     def __init__(self, output_dir="./data/audio", enable_coqui_fallback=True):
@@ -70,7 +61,23 @@ class MultilingualTTSHandler:
                 logger.warning(f"Coqui TTS not available: {e}. Using gTTS for all languages.")
                 self.coqui_available = False
 
-        logger.info(f"Multilingual TTS Handler initialized (gTTS primary, Coqui fallback: {self.coqui_available})")
+        # Initialize Azure TTS fallback (premium quality)
+        self.azure_handler = None
+        self.azure_available = False
+
+        try:
+            from src.azure_tts_handler import AzureTTSHandler
+            self.azure_handler = AzureTTSHandler(output_dir=output_dir)
+            if self.azure_handler.is_configured():
+                self.azure_available = True
+                logger.info("✓ Azure Neural TTS available (Premium quality for EN/KN/HI)")
+            else:
+                logger.info("ℹ Azure TTS not configured (optional). Using gTTS.")
+        except Exception as e:
+            logger.warning(f"Azure TTS not available: {e}. Using gTTS.")
+            self.azure_available = False
+
+        logger.info(f"Multilingual TTS Handler initialized (gTTS: ✓, Coqui: {self.coqui_available}, Azure: {self.azure_available})")
 
     def detect_language(self, text: str) -> str:
         """
@@ -113,14 +120,16 @@ class MultilingualTTSHandler:
             logger.warning(f"Language detection failed: {e}. Defaulting to English")
             return 'en'
 
-    def synthesize(self, text: str, language: str = 'auto', output_filename: Optional[str] = None) -> Dict[str, Any]:
+    def synthesize(self, text: str, language: str = 'auto', output_filename: Optional[str] = None,
+                   engine_preference: str = 'auto') -> Dict[str, Any]:
         """
-        Convert text to speech using gTTS (primary) or Coqui (fallback)
+        Convert text to speech with engine selection
 
         Args:
             text: Text to convert to speech
             language: Language code ('en', 'hi', 'kn', 'auto' for auto-detection)
             output_filename: Optional custom filename (without extension)
+            engine_preference: 'auto', 'gtts', 'azure', 'coqui'
 
         Returns:
             dict with 'audio_path', 'duration', 'text', 'filename', 'language', 'engine'
@@ -141,19 +150,52 @@ class MultilingualTTSHandler:
             # Clean text for TTS
             cleaned_text = self._clean_text_for_tts(text)
 
-            # Decide which engine to use
-            use_coqui = (
-                language == 'en' and
-                self.coqui_available and
-                len(cleaned_text) < 500  # Use Coqui only for shorter texts to save time
-            )
+            # Decide which engine to use based on preference and availability
+            if engine_preference == 'azure' and self.azure_available:
+                # User explicitly wants Azure
+                logger.info(f"Using Azure Neural TTS for {language} (user preference)")
+                return self._synthesize_with_azure(cleaned_text, language, output_filename)
 
-            if use_coqui:
-                logger.info("Using Coqui TTS for English (high quality)")
-                return self._synthesize_with_coqui(cleaned_text, output_filename)
-            else:
-                logger.info(f"Using gTTS for {self.SUPPORTED_LANGUAGES.get(language, language)}")
+            elif engine_preference == 'gtts':
+                # User explicitly wants gTTS
+                logger.info(f"Using gTTS for {language} (user preference)")
                 return self._synthesize_with_gtts(cleaned_text, language, output_filename)
+
+            elif engine_preference == 'coqui' and language == 'en' and self.coqui_available:
+                # User explicitly wants Coqui (English only)
+                logger.info("Using Coqui TTS for English (user preference)")
+                return self._synthesize_with_coqui(cleaned_text, output_filename)
+
+            else:
+                # Auto mode: Choose best engine automatically
+                # Priority for Kannada: Azure > gTTS (improved)
+                # Priority for Hindi: Azure > gTTS
+                # Priority for English: Coqui (short) > Azure > gTTS
+
+                if language == 'kn' and self.azure_available:
+                    # Azure has the best Kannada quality
+                    logger.info("Using Azure Neural TTS for Kannada (auto - best quality)")
+                    return self._synthesize_with_azure(cleaned_text, language, output_filename)
+
+                elif language == 'hi' and self.azure_available:
+                    # Azure has excellent Hindi quality
+                    logger.info("Using Azure Neural TTS for Hindi (auto - best quality)")
+                    return self._synthesize_with_azure(cleaned_text, language, output_filename)
+
+                elif language == 'en' and self.coqui_available and len(cleaned_text) < 500:
+                    # Coqui for short English texts
+                    logger.info("Using Coqui TTS for English (auto - high quality)")
+                    return self._synthesize_with_coqui(cleaned_text, output_filename)
+
+                elif language == 'en' and self.azure_available:
+                    # Azure for longer English texts
+                    logger.info("Using Azure Neural TTS for English (auto - best quality)")
+                    return self._synthesize_with_azure(cleaned_text, language, output_filename)
+
+                else:
+                    # Fallback to gTTS (free, reliable)
+                    logger.info(f"Using gTTS for {self.SUPPORTED_LANGUAGES.get(language, language)} (auto - free fallback)")
+                    return self._synthesize_with_gtts(cleaned_text, language, output_filename)
 
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}")
@@ -162,7 +204,7 @@ class MultilingualTTSHandler:
             return self._synthesize_with_gtts(text, 'en', output_filename)
 
     def _synthesize_with_gtts(self, text: str, language: str, output_filename: Optional[str] = None) -> Dict[str, Any]:
-        """Synthesize speech using gTTS"""
+        """Synthesize speech using gTTS with improved settings"""
         try:
             # Generate filename
             if output_filename is None:
@@ -173,8 +215,27 @@ class MultilingualTTSHandler:
 
             logger.info(f"Synthesizing with gTTS ({language}): {len(text)} characters")
 
-            # Create gTTS object
-            tts = gTTS(text=text, lang=language, slow=False)
+            # Improved settings for better pronunciation
+            # Use regional variants for Indian languages for better accent
+            lang_variants = {
+                'hi': 'hi-IN',  # Hindi (India)
+                'kn': 'kn-IN',  # Kannada (India) - Better pronunciation
+                'en': 'en-IN'   # English (India) - Indian accent
+            }
+
+            # Get the best language variant
+            tts_lang = lang_variants.get(language, language)
+
+            # For Kannada, use slower speed for better clarity
+            use_slow = (language == 'kn')
+
+            # Create gTTS object with improved settings
+            tts = gTTS(
+                text=text,
+                lang=tts_lang,
+                slow=use_slow,  # Slower for Kannada = clearer
+                lang_check=False  # Skip lang check to use regional variants
+            )
 
             # Save to file
             tts.save(output_path)
@@ -218,15 +279,30 @@ class MultilingualTTSHandler:
             logger.error(f"Coqui TTS failed: {e}. Falling back to gTTS")
             return self._synthesize_with_gtts(text, 'en', output_filename)
 
+    def _synthesize_with_azure(self, text: str, language: str, output_filename: Optional[str] = None) -> Dict[str, Any]:
+        """Synthesize speech using Azure Neural TTS (Premium quality)"""
+        try:
+            if not self.azure_handler or not self.azure_available:
+                raise Exception("Azure TTS not available")
+
+            logger.info(f"Synthesizing with Azure Neural TTS: {len(text)} characters")
+
+            result = self.azure_handler.synthesize(text, language, output_filename)
+            return result
+
+        except Exception as e:
+            logger.error(f"Azure TTS failed: {e}. Falling back to gTTS")
+            return self._synthesize_with_gtts(text, language, output_filename)
+
     def _clean_text_for_tts(self, text: str) -> str:
         """
-        Clean text for TTS by removing markdown formatting and special symbols
+        Clean text for TTS by removing markdown formatting and adding natural pauses
 
         Args:
             text: Raw text with possible markdown formatting
 
         Returns:
-            Clean text suitable for TTS
+            Clean text suitable for TTS with improved pacing
         """
         import re
 
@@ -249,6 +325,16 @@ class MultilingualTTSHandler:
         # Remove bullet points and convert to comma-separated
         text = re.sub(r'\n\s*[-*•]\s+', ', ', text)
 
+        # Add natural pauses for better clarity (especially for Kannada)
+        # Add pause after sentences
+        text = re.sub(r'([।.!?])\s+', r'\1. ', text)  # । is Devanagari full stop
+
+        # Add pause after colons
+        text = re.sub(r':\s+', ': ', text)
+
+        # Add pause between list items
+        text = re.sub(r',\s+', ', ', text)
+
         # Remove extra spaces
         text = re.sub(r'\s+', ' ', text)
 
@@ -266,12 +352,11 @@ class MultilingualTTSHandler:
             Estimated duration in seconds
         """
         # Average speaking rates (words per minute)
+        # Slower rates for Kannada slow mode for better clarity
         wpm_rates = {
             'en': 150,  # English
             'hi': 140,  # Hindi
-            'kn': 130,  # Kannada
-            'ta': 130,  # Tamil
-            'te': 130,  # Telugu
+            'kn': 100,  # Kannada (slower for clarity with slow=True)
         }
 
         wpm = wpm_rates.get(language, 140)

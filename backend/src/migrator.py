@@ -205,11 +205,19 @@ def run_migrations():
 
     if failed > 0:
         logger.error(f"\n⚠️  {failed} migration(s) failed. Please check the errors above.")
-        exit(1)
+        raise Exception(f"{failed} migration(s) failed")
     else:
         logger.info("\n✅ All migrations completed successfully!")
-        exit(0)
+        return executed, failed
 
 
 if __name__ == '__main__':
-    run_migrations()
+    try:
+        executed, failed = run_migrations()
+        if failed > 0:
+            exit(1)
+        else:
+            exit(0)
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
+        exit(1)

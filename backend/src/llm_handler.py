@@ -76,12 +76,18 @@ class LLMHandler:
                 if conversation_history:
                     conv_history = conversation_history
 
+                # Determine max_tokens based on query type
+                if any(keyword in query.lower() for keyword in ['summarize', 'summary', 'explain', 'describe', 'long']):
+                    max_tokens = 2000  # Long responses for summaries/explanations
+                else:
+                    max_tokens = 500  # Shorter for direct questions
+
                 # Use fallback handler with automatic provider cascade
                 result = self.fallback_handler.query_text(
                     question=prompt,
                     conversation_history=conv_history,
                     system_prompt=self._get_system_prompt(),
-                    max_tokens=300  # Very short - force direct answers only
+                    max_tokens=max_tokens
                 )
 
                 if result['success']:
@@ -93,6 +99,12 @@ class LLMHandler:
 
             else:
                 # Fallback to direct Groq (legacy mode)
+                # Determine max_tokens based on query type
+                if any(keyword in query.lower() for keyword in ['summarize', 'summary', 'explain', 'describe']):
+                    max_tokens = 2000  # Long responses for summaries/explanations
+                else:
+                    max_tokens = 500  # Shorter for direct questions
+
                 response = self.client.chat.completions.create(
                     model=self.config.LLM_MODEL,
                     messages=[
@@ -100,7 +112,7 @@ class LLMHandler:
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.4,  # Lower for more direct, factual responses
-                    max_tokens=300,  # Very short - force direct answers only
+                    max_tokens=max_tokens,
                     top_p=1,
                     stream=False
                 )

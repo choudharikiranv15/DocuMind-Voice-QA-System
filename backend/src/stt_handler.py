@@ -95,15 +95,16 @@ class STTHandler:
         raise Exception("All STT services failed. Please check your API keys and internet connection.")
     
     def _transcribe_with_groq(self, audio_file_path, language=None):
-        """Transcribe using Groq Whisper API (primary method)"""
+        """Transcribe using Groq Whisper API (primary method) - English only"""
         logger.info(f"🎤 Transcribing with Groq Whisper: {audio_file_path}")
-        
+
         with open(audio_file_path, 'rb') as audio_file:
             # Use whisper-large-v3-turbo for better accuracy and speed
+            # Force English language for better accuracy (user input is always in English)
             transcription = self.groq_client.audio.transcriptions.create(
                 file=(os.path.basename(audio_file_path), audio_file.read()),
                 model="whisper-large-v3-turbo",  # Better model
-                language=language,
+                language="en",  # Always English - user input requirement
                 response_format="verbose_json",
                 temperature=0.0  # More deterministic output
             )
@@ -120,14 +121,14 @@ class STTHandler:
         return result
     
     def _transcribe_with_openai(self, audio_file_path, language=None):
-        """Transcribe using OpenAI Whisper API (fallback 1)"""
+        """Transcribe using OpenAI Whisper API (fallback 1) - English only"""
         logger.info(f"🎤 Transcribing with OpenAI Whisper: {audio_file_path}")
-        
+
         with open(audio_file_path, 'rb') as audio_file:
             transcription = self.openai_client.audio.transcriptions.create(
                 file=audio_file,
                 model="whisper-1",
-                language=language,
+                language="en",  # Always English - user input requirement
                 response_format="verbose_json",
                 temperature=0.0
             )

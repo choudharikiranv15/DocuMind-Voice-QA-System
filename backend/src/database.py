@@ -135,3 +135,40 @@ class Database:
             return bool(response.data)
         except Exception:
             return False
+
+    def get_voice_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user's voice preferences"""
+        try:
+            response = self.client.table('user_voice_preferences').select('*').eq('user_id', user_id).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+        except Exception:
+            return None
+
+    def update_voice_preferences(self, user_id: str, engine_preference: str, language_preference: str) -> bool:
+        """Update or insert user's voice preferences"""
+        try:
+            # Check if preferences exist
+            existing = self.get_voice_preferences(user_id)
+
+            if existing:
+                # Update existing preferences
+                response = self.client.table('user_voice_preferences').update({
+                    'engine_preference': engine_preference,
+                    'language_preference': language_preference,
+                    'updated_at': 'NOW()'
+                }).eq('user_id', user_id).execute()
+            else:
+                # Insert new preferences
+                response = self.client.table('user_voice_preferences').insert({
+                    'user_id': user_id,
+                    'engine_preference': engine_preference,
+                    'language_preference': language_preference
+                }).execute()
+
+            return bool(response.data)
+        except Exception as e:
+            import logging
+            logging.error(f"Database error updating voice preferences: {e}")
+            return False

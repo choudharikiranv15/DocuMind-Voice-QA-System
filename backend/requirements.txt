@@ -43,6 +43,7 @@ httpx>=0.25.0  # HTTP client for async requests
 # Voice Processing - TTS
 TTS>=0.22.0  # Coqui TTS (VITS) - High quality neural TTS
 gtts>=2.5.0  # gTTS - Primary for multilingual support
+azure-cognitiveservices-speech>=1.47.0  # Azure Neural TTS (Premium - 5M chars/month free)
 pydub>=0.25.0
 langdetect>=1.0.9  # Language detection for auto-language TTS
 

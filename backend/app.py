@@ -34,9 +34,18 @@ CORS(app, resources={
     r"/*": {
         "origins": cors_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
+        "allow_headers": [
+            "Content-Type",
+            "Authorization",
+            "baggage",           # Sentry tracing
+            "sentry-trace",      # Sentry tracing
+            "X-Requested-With",  # Common AJAX header
+            "Accept",            # Standard header
+            "Origin"             # CORS header
+        ],
         "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "supports_credentials": True,
+        "max_age": 3600  # Cache preflight requests for 1 hour
     }
 })
 
@@ -606,20 +615,44 @@ def transcribe_audio():
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/speak', methods=['POST'])
+@require_auth
 def text_to_speech():
-    """Convert text to speech with multilingual support"""
+    """Convert text to speech with multilingual support and user preferences"""
     try:
+        user_id = request.user_id
         data = request.json
         text = data.get('text', '').strip()
         language = data.get('language', 'auto')  # 'auto', 'en', 'hi', 'kn', etc.
+        engine_preference = data.get('engine', None)  # Optional: 'auto', 'gtts', 'azure', 'coqui'
 
         if not text:
             return jsonify({'success': False, 'message': 'No text provided'})
 
-        logger.info(f"Synthesizing speech for {len(text)} characters (language: {language})")
+        # Get user's voice preferences if no engine specified
+        if not engine_preference:
+            try:
+                user_prefs = db.get_voice_preferences(user_id)
+                if user_prefs:
+                    engine_preference = user_prefs['engine_preference']
+                else:
+                    engine_preference = 'auto'
+            except Exception as e:
+                logger.warning(f"Could not fetch user voice preferences: {e}")
+                engine_preference = 'auto'
 
-        # Synthesize speech with language support
-        result = tts_handler.synthesize(text, language=language)
+        # Check user's plan for engine restrictions
+        user_plan = db.get_user_plan(user_id)
+
+        # Free users can only use 'auto' mode (which may use Azure automatically)
+        # Paid users can explicitly choose Azure
+        if user_plan and user_plan['plan_type'] == 'free' and engine_preference == 'azure':
+            logger.info(f"Free user tried to use Azure explicitly, using auto mode")
+            engine_preference = 'auto'
+
+        logger.info(f"Synthesizing speech for {len(text)} characters (language: {language}, engine: {engine_preference})")
+
+        # Synthesize speech with language and engine preference
+        result = tts_handler.synthesize(text, language=language, engine_preference=engine_preference)
 
         return jsonify({
             'success': True,
@@ -663,6 +696,146 @@ def get_supported_languages():
         })
     except Exception as e:
         logger.error(f"Get languages error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/tts/engines', methods=['GET'])
+@require_auth
+def get_available_engines():
+    """Get list of available TTS engines and user's access level"""
+    try:
+        user_id = request.user_id
+
+        # Get user's plan using Supabase
+        user_plan = db.get_user_plan(user_id)
+        plan_type = user_plan['plan_type'] if user_plan else 'free'
+
+        # Define engine info
+        engines = {
+            'auto': {
+                'name': 'Auto (Smart Selection)',
+                'description': 'Automatically selects the best engine based on language and text',
+                'available': True,
+                'quality': 'mixed',
+                'free': True
+            },
+            'gtts': {
+                'name': 'Google TTS (Standard)',
+                'description': 'Free, reliable, supports 100+ languages',
+                'available': True,
+                'quality': 'good',
+                'free': True
+            },
+            'azure': {
+                'name': 'Azure Neural TTS (Premium)',
+                'description': 'Best quality neural voices for Kannada, Hindi, and English',
+                'available': tts_handler.azure_available,
+                'quality': 'excellent',
+                'free': False,
+                'premium_only': True
+            },
+            'coqui': {
+                'name': 'Coqui TTS (High Quality)',
+                'description': 'High quality English voice',
+                'available': tts_handler.coqui_available,
+                'quality': 'very_good',
+                'free': True
+            }
+        }
+
+        # Free users can't explicitly select Azure
+        if plan_type == 'free':
+            engines['azure']['accessible'] = False
+            engines['azure']['reason'] = 'Premium feature - upgrade to access'
+        else:
+            engines['azure']['accessible'] = True
+
+        return jsonify({
+            'success': True,
+            'engines': engines,
+            'user_plan': plan_type,
+            'azure_configured': tts_handler.azure_available
+        })
+
+    except Exception as e:
+        logger.error(f"Get engines error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/voice/preferences', methods=['GET'])
+@require_auth
+def get_voice_preferences():
+    """Get user's voice preferences"""
+    try:
+        user_id = request.user_id
+
+        # Get voice preferences using Supabase
+        prefs = db.get_voice_preferences(user_id)
+
+        if not prefs:
+            # Create default preferences if not exists
+            db.update_voice_preferences(user_id, 'auto', 'auto')
+            prefs = {
+                'engine_preference': 'auto',
+                'language_preference': 'auto'
+            }
+
+        return jsonify({
+            'success': True,
+            'preferences': prefs
+        })
+
+    except Exception as e:
+        logger.error(f"Get voice preferences error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/voice/preferences', methods=['PUT'])
+@require_auth
+def update_voice_preferences_endpoint():
+    """Update user's voice preferences"""
+    try:
+        user_id = request.user_id
+        data = request.json
+
+        engine_preference = data.get('engine_preference', 'auto')
+        language_preference = data.get('language_preference', 'auto')
+
+        # Validate engine preference
+        valid_engines = ['auto', 'gtts', 'azure', 'coqui']
+        if engine_preference not in valid_engines:
+            return jsonify({'success': False, 'message': f'Invalid engine. Must be one of: {", ".join(valid_engines)}'})
+
+        # Check if user has access to Azure
+        if engine_preference == 'azure':
+            user_plan = db.get_user_plan(user_id)
+
+            if user_plan and user_plan['plan_type'] == 'free':
+                return jsonify({
+                    'success': False,
+                    'message': 'Azure Neural TTS is a premium feature. Please upgrade your plan.',
+                    'premium_required': True
+                })
+
+        # Update preferences using Supabase
+        success = db.update_voice_preferences(user_id, engine_preference, language_preference)
+
+        if not success:
+            return jsonify({'success': False, 'message': 'Failed to update preferences'})
+
+        logger.info(f"Updated voice preferences for user {user_id}: engine={engine_preference}, language={language_preference}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Voice preferences updated successfully',
+            'preferences': {
+                'engine_preference': engine_preference,
+                'language_preference': language_preference
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Update voice preferences error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -886,14 +1059,28 @@ def health_check():
         }), 500
 
 if __name__ == '__main__':
-    print("Starting DocuMind Voice - Multimodal RAG System")
-    print("Voice Input: Groq Whisper STT (with fallbacks)")
-    print("Voice Output: Coqui TTS (VITS) - High Quality Neural Speech")
-    print("RAG Engine: Llama-3.1 + MiniLM")
-    print("Vector Store: ChromaDB (Persistent)")
-    print(f"Redis Cache: {rag_system.cache.mode} ({rag_system.cache.enabled and 'enabled' or 'disabled'})")
-    print(f"Beta Limits: {user_limits.MAX_DOCUMENTS_PER_USER} docs, {user_limits.MAX_QUERIES_PER_DAY} queries/day, {user_limits.MAX_FILE_SIZE_MB}MB files")
-    print("Open your browser at: http://localhost:8080")
+    print("=" * 70)
+    print("DocuMind Voice - Multimodal RAG System")
+    print("=" * 70)
+
+    # Run database migrations automatically
+    print("\n🔄 Checking database migrations...")
+    try:
+        from src.migrator import run_migrations
+        run_migrations()
+        print("✅ Database migrations completed successfully\n")
+    except Exception as e:
+        print(f"⚠️  Migration check failed: {e}")
+        print("Continuing with startup...\n")
+
+    print("Configuration:")
+    print("  Voice Input: Groq Whisper STT (with fallbacks)")
+    print("  Voice Output: Coqui TTS (VITS) - High Quality Neural Speech")
+    print("  RAG Engine: Llama-3.1 + MiniLM")
+    print("  Vector Store: ChromaDB (Persistent)")
+    print(f"  Redis Cache: {rag_system.cache.mode} ({rag_system.cache.enabled and 'enabled' or 'disabled'})")
+    print(f"  Beta Limits: {user_limits.MAX_DOCUMENTS_PER_USER} docs, {user_limits.MAX_QUERIES_PER_DAY} queries/day, {user_limits.MAX_FILE_SIZE_MB}MB files")
+    print("\n🌐 Open your browser at: http://localhost:8080")
     print("\nEndpoints:")
     print("  POST /auth/signup - User registration")
     print("  POST /auth/login - User login")

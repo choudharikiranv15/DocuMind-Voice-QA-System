@@ -26,7 +26,9 @@ export default function ChatInput({ setIsThinking }) {
         setIsThinking(true) // Show thinking animation
 
         // Add user message
+        const userMessageId = Date.now()
         addMessage({
+            id: userMessageId,
             role: 'user',
             text: userMessage,
             timestamp: new Date().toISOString()
@@ -36,10 +38,11 @@ export default function ChatInput({ setIsThinking }) {
             // Pass the current document name and language to filter results
             const response = await askQuestion(userMessage, currentDocument?.name, selectedLanguage)
 
-            // Add AI response
+            // Add AI response with reference to the query
             addMessage({
                 role: 'assistant',
                 text: response.answer,
+                query: userMessage, // Store the original query for feedback
                 metadata: response.metadata,
                 audioUrl: response.audio?.url || null, // Auto-generated audio URL from backend
                 audioGenerating: response.audio?.generating || false, // Audio generation status

@@ -7,8 +7,8 @@ export default function LanguageSelector({ selectedLanguage, onLanguageChange })
     const [loading, setLoading] = useState(true)
     const [isOpen, setIsOpen] = useState(false)
 
-    // Common languages to show at the top
-    const priorityLanguages = ['auto', 'en', 'hi', 'kn', 'ta', 'te']
+    // Only 3 languages supported as per requirements
+    const priorityLanguages = ['auto', 'en', 'kn', 'hi']
 
     useEffect(() => {
         fetchLanguages()
@@ -20,13 +20,11 @@ export default function LanguageSelector({ selectedLanguage, onLanguageChange })
             setLanguages(langs)
         } catch (error) {
             console.error('Failed to load languages:', error)
-            // Fallback to basic languages
+            // Fallback to 3 supported languages
             setLanguages({
                 'en': 'English',
-                'hi': 'Hindi',
                 'kn': 'Kannada',
-                'ta': 'Tamil',
-                'te': 'Telugu'
+                'hi': 'Hindi'
             })
         } finally {
             setLoading(false)
@@ -160,7 +158,7 @@ export default function LanguageSelector({ selectedLanguage, onLanguageChange })
                         {/* Footer Info */}
                         <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-3">
                             <p className="text-xs text-gray-500 text-center">
-                                {Object.keys(languages).length + 1} languages available
+                                Voice response in English, Kannada, or Hindi
                             </p>
                         </div>
                     </motion.div>

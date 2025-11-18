@@ -7,7 +7,7 @@ import { textToSpeech } from '../../services/api'
 import { toast } from 'react-hot-toast'
 import api from '../../services/api'
 
-export default function Message({ message, query }) {
+export default function Message({ message }) {
     const isUser = message.role === 'user'
     const [audioUrl, setAudioUrl] = useState(message.audioUrl || null)
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(message.audioGenerating || false)
@@ -99,13 +99,14 @@ export default function Message({ message, query }) {
         try {
             await api.post('/feedback', {
                 message_id: message.id || `${Date.now()}-${Math.random()}`,
-                query: query || 'No query provided',
+                query: message.query || 'No query provided',
                 response: message.text,
                 rating
             })
             setFeedbackGiven(rating)
             toast.success('Thank you for your feedback!')
         } catch (error) {
+            console.error('Feedback error:', error)
             toast.error('Failed to submit feedback')
         }
     }

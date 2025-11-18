@@ -142,16 +142,6 @@ export const transcribeAudio = async (audioBlob) => {
     return response.data
 }
 
-export const textToSpeech = async (text) => {
-    const response = await api.post('/speak', { text })
-
-    if (!response.data.success) {
-        throw new Error(response.data.message || 'TTS failed')
-    }
-
-    return response.data
-}
-
 export const voiceQuery = async (audioBlob) => {
     const formData = new FormData()
     formData.append('audio', audioBlob, 'query.wav')
@@ -178,6 +168,37 @@ export const getStats = async () => {
     }
 
     return response.data.stats
+}
+
+// Voice Preference APIs
+export const getAvailableEngines = async () => {
+    const response = await api.get('/tts/engines')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get available engines')
+    }
+
+    return response.data
+}
+
+export const getVoicePreferences = async () => {
+    const response = await api.get('/voice/preferences')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get voice preferences')
+    }
+
+    return response.data.preferences
+}
+
+export const updateVoicePreferences = async (preferences) => {
+    const response = await api.put('/voice/preferences', preferences)
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update voice preferences')
+    }
+
+    return response.data
 }
 
 export default api
