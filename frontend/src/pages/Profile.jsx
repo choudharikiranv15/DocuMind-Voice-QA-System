@@ -6,6 +6,8 @@ import { useDocumentStore } from '../stores/documentStore'
 import { useChatStore } from '../stores/chatStore'
 import VoicePreferences from '../components/settings/VoicePreferences'
 import AccountManagement from '../components/settings/AccountManagement'
+import UsageDashboard from '../components/dashboard/UsageDashboard'
+import DownloadHistory from '../components/chat/DownloadHistory'
 import toast from 'react-hot-toast'
 
 export default function Profile() {
@@ -373,20 +375,42 @@ export default function Profile() {
                         </div>
                     </motion.div>
 
-                    {/* Voice Preferences */}
+                    {/* Usage Dashboard (Phase 2) */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8, duration: 0.6 }}
+                        className="mb-6"
+                    >
+                        <UsageDashboard />
+                    </motion.div>
+
+                    {/* Voice Preferences */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.9, duration: 0.6 }}
+                        className="mb-6"
                     >
                         <VoicePreferences />
+                    </motion.div>
+
+                    {/* Download Chat History (Phase 2) */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.0, duration: 0.6 }}
+                        className="mb-6"
+                    >
+                        <DownloadHistory />
                     </motion.div>
 
                     {/* Account Management (Phase 1) */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.9, duration: 0.6 }}
+                        transition={{ delay: 1.1, duration: 0.6 }}
+                        className="mb-6"
                     >
                         <AccountManagement />
                     </motion.div>

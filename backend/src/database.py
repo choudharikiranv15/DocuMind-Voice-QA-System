@@ -182,3 +182,63 @@ class Database:
             import logging
             logging.error(f"Database error updating voice preferences: {e}")
             return False
+
+    def search_documents(self, user_id: str, search_query: str = None, category: str = None, tags: list = None) -> list:
+        """Search documents by query, category, or tags"""
+        try:
+            query = self.client.table('documents').select('*').eq('user_id', user_id)
+
+            # Filter by category if provided
+            if category and category != 'all':
+                query = query.eq('category', category)
+
+            # Filter by tags if provided (any tag match)
+            if tags and len(tags) > 0:
+                query = query.contains('tags', tags)
+
+            # Text search on filename and description if provided
+            if search_query and search_query.strip():
+                # Use ilike for case-insensitive search
+                query = query.or_(f"filename.ilike.%{search_query}%,description.ilike.%{search_query}%")
+
+            response = query.order('uploaded_at', desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error searching documents: {e}")
+            return []
+
+    def update_document_metadata(self, document_id: str, user_id: str, updates: Dict[str, Any]) -> bool:
+        """Update document metadata (category, tags, description)"""
+        try:
+            response = self.client.table('documents').update(updates).eq('id', document_id).eq('user_id', user_id).execute()
+            return bool(response.data)
+        except Exception as e:
+            import logging
+            logging.error(f"Database error updating document metadata: {e}")
+            return False
+
+    def get_document_categories(self) -> list:
+        """Get list of predefined document categories"""
+        try:
+            response = self.client.table('document_categories').select('*').order('name').execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting categories: {e}")
+            return []
+
+    def get_user_documents_with_filters(self, user_id: str, category: str = None, limit: int = 100) -> list:
+        """Get user documents with optional category filter"""
+        try:
+            query = self.client.table('documents').select('*').eq('user_id', user_id)
+
+            if category and category != 'all':
+                query = query.eq('category', category)
+
+            response = query.order('uploaded_at', desc=True).limit(limit).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting documents: {e}")
+            return []

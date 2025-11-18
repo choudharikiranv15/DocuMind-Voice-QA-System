@@ -243,4 +243,51 @@ export const deleteAccount = async (password, confirmation) => {
     return response.data
 }
 
+// Document Search & Categories APIs (Phase 2)
+export const searchDocuments = async (query, category = null, tags = null) => {
+    const params = new URLSearchParams()
+    if (query) params.append('q', query)
+    if (category) params.append('category', category)
+    if (tags && tags.length > 0) params.append('tags', tags.join(','))
+
+    const response = await api.get(`/documents/search?${params.toString()}`)
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to search documents')
+    }
+
+    return response.data
+}
+
+export const updateDocumentMetadata = async (documentId, updates) => {
+    const response = await api.put(`/documents/${documentId}/metadata`, updates)
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update document')
+    }
+
+    return response.data
+}
+
+export const getDocumentCategories = async () => {
+    const response = await api.get('/documents/categories')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get categories')
+    }
+
+    return response.data.categories
+}
+
+// Usage Stats API
+export const getUserLimits = async () => {
+    const response = await api.get('/limits')
+
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get usage stats')
+    }
+
+    return response.data.usage
+}
+
 export default api

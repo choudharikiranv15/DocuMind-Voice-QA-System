@@ -1177,6 +1177,92 @@ def clear_all_documents():
         logger.error(f"Clear all documents error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
+
+# ============= DOCUMENT SEARCH & CATEGORIES (PHASE 2) =============
+
+@app.route('/documents/search', methods=['GET'])
+@require_auth
+def search_documents():
+    """Search documents by query, category, or tags"""
+    try:
+        search_query = request.args.get('q', '').strip()
+        category = request.args.get('category', None)
+        tags_param = request.args.get('tags', '')
+        tags = [t.strip() for t in tags_param.split(',') if t.strip()] if tags_param else None
+
+        logger.info(f"Searching documents: query='{search_query}', category='{category}', tags={tags}")
+
+        documents = db.search_documents(request.user_id, search_query, category, tags)
+
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'count': len(documents)
+        })
+
+    except Exception as e:
+        logger.error(f"Search documents error: {str(e)}")
+        capture_exception(e, {'endpoint': 'search_documents'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/documents/<document_id>/metadata', methods=['PUT'])
+@require_auth
+def update_document_metadata(document_id):
+    """Update document metadata (category, tags, description)"""
+    try:
+        data = request.json
+        updates = {}
+
+        if 'category' in data:
+            updates['category'] = data['category']
+
+        if 'tags' in data:
+            # Ensure tags is a list
+            if isinstance(data['tags'], list):
+                updates['tags'] = data['tags']
+            elif isinstance(data['tags'], str):
+                updates['tags'] = [t.strip() for t in data['tags'].split(',') if t.strip()]
+
+        if 'description' in data:
+            updates['description'] = data['description']
+
+        if not updates:
+            return jsonify({'success': False, 'message': 'No updates provided'}), 400
+
+        success = db.update_document_metadata(document_id, request.user_id, updates)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Document metadata updated successfully'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update document'}), 500
+
+    except Exception as e:
+        logger.error(f"Update document metadata error: {str(e)}")
+        capture_exception(e, {'endpoint': 'update_document_metadata'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/documents/categories', methods=['GET'])
+@require_auth
+def get_document_categories():
+    """Get list of predefined document categories"""
+    try:
+        categories = db.get_document_categories()
+
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+
+    except Exception as e:
+        logger.error(f"Get categories error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/cache/clear', methods=['POST'])
 def clear_cache():
     """Clear all cache entries"""
