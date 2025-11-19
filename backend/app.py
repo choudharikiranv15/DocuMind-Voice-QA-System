@@ -1,6 +1,9 @@
 # app_flask.py - Flask interface for RAG System with Voice Support
 from flask import Flask, render_template, request, jsonify, session, send_file
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 import os
 from werkzeug.utils import secure_filename
 from config.config import Config
@@ -23,10 +26,94 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ============= ENVIRONMENT VALIDATION =============
+def validate_environment():
+    """Validate required environment variables are set"""
+    REQUIRED_VARS = {
+        'GROQ_API_KEY': 'LLM service (required for chat)',
+        'SUPABASE_URL': 'Database (required for auth & data)',
+        'SUPABASE_KEY': 'Database authentication',
+        'SECRET_KEY': 'Session security (generate with: python -c "import secrets; print(secrets.token_hex(32))")',
+        'GEMINI_API_KEY': 'Image analysis (required for visual content)',
+    }
+
+    OPTIONAL_VARS = {
+        'UPSTASH_REDIS_REST_URL': 'Caching (will use in-memory fallback)',
+        'UPSTASH_REDIS_REST_TOKEN': 'Redis authentication',
+        'SENTRY_DSN': 'Error tracking (recommended for production)',
+        'POSTHOG_API_KEY': 'Analytics (recommended for production)',
+        'RESEND_API_KEY': 'Email service (required for password reset)',
+        'AZURE_SPEECH_KEY': 'Premium TTS service (optional, falls back to gTTS)',
+    }
+
+    missing_required = []
+    missing_optional = []
+
+    for var, description in REQUIRED_VARS.items():
+        if not os.getenv(var):
+            missing_required.append(f"  ❌ {var}: {description}")
+
+    for var, description in OPTIONAL_VARS.items():
+        if not os.getenv(var):
+            missing_optional.append(f"  ⚠️  {var}: {description}")
+
+    if missing_required:
+        print("\n" + "="*70)
+        print("CRITICAL: Missing Required Environment Variables")
+        print("="*70)
+        for msg in missing_required:
+            print(msg)
+        print("\nPlease set these variables in your .env file")
+        print("="*70 + "\n")
+        raise RuntimeError("Missing required environment variables. Cannot start.")
+
+    if missing_optional:
+        print("\n" + "="*70)
+        print("WARNING: Missing Optional Environment Variables")
+        print("="*70)
+        for msg in missing_optional:
+            print(msg)
+        print("\nApplication will run with reduced functionality.")
+        print("="*70 + "\n")
+
+# Validate environment before starting
+validate_environment()
+
 app = Flask(__name__)
 
 # Initialize Sentry for error tracking
 init_sentry(app)
+
+# Security headers with Flask-Talisman
+# Content Security Policy to prevent XSS, clickjacking, etc.
+csp = {
+    'default-src': "'self'",
+    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"],  # Allow React and inline scripts
+    'style-src': ["'self'", "'unsafe-inline'"],  # Allow inline styles and Tailwind
+    'img-src': ["'self'", 'data:', 'https:', 'blob:'],  # Allow images from CDNs and data URIs
+    'font-src': ["'self'", 'data:'],
+    'connect-src': [
+        "'self'",
+        'https://api.groq.com',  # Groq LLM API
+        'https://*.supabase.co',  # Supabase database
+        'https://*.upstash.io',  # Upstash Redis
+        'https://*.sentry.io',  # Sentry error tracking
+        'https://app.posthog.com',  # PostHog analytics
+    ],
+    'media-src': ["'self'", 'blob:', 'data:'],  # Allow audio playback
+    'worker-src': ["'self'", 'blob:'],  # Allow web workers
+}
+
+Talisman(
+    app,
+    content_security_policy=csp,
+    content_security_policy_nonce_in=['script-src'],
+    force_https=False,  # Set to True in production with HTTPS
+    strict_transport_security=True,
+    strict_transport_security_max_age=31536000,  # 1 year
+    x_content_type_options=True,  # Prevent MIME sniffing
+    x_frame_options='DENY',  # Prevent clickjacking
+)
 
 # CORS Configuration for production
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
@@ -49,7 +136,21 @@ CORS(app, resources={
     }
 })
 
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
+# Rate limiter configuration
+# Uses Redis if available (Upstash), falls back to in-memory
+upstash_url = os.getenv('UPSTASH_REDIS_REST_URL')
+upstash_token = os.getenv('UPSTASH_REDIS_REST_TOKEN')
+storage_uri = f"redis://{upstash_url.replace('https://', '')}?password={upstash_token}" if upstash_url and upstash_token else "memory://"
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri=storage_uri,
+    default_limits=["200 per day", "50 per hour"],  # Default limits for all endpoints
+    strategy="fixed-window"
+)
+
+app.secret_key = os.getenv('SECRET_KEY')  # Required - validated above
 app.config['UPLOAD_FOLDER'] = './data/pdfs'
 app.config['AUDIO_FOLDER'] = './data/audio'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
@@ -83,6 +184,7 @@ def voice_test():
 # ============= AUTHENTICATION ENDPOINTS =============
 
 @app.route('/auth/signup', methods=['POST'])
+@limiter.limit("3 per hour")  # Prevent spam account creation
 def signup():
     """User registration endpoint with role/occupation"""
     try:
@@ -137,6 +239,7 @@ def signup():
 
 
 @app.route('/auth/login', methods=['GET', 'POST', 'OPTIONS'])
+@limiter.limit("5 per minute")  # Prevent brute force attacks
 def login():
     """User login endpoint"""
     # Handle OPTIONS request (CORS preflight)
@@ -219,6 +322,7 @@ def get_current_user():
 
 
 @app.route('/auth/forgot-password', methods=['POST'])
+@limiter.limit("3 per hour")  # Prevent password reset spam
 def forgot_password():
     """Request password reset"""
     try:
@@ -261,6 +365,7 @@ def forgot_password():
 
 
 @app.route('/auth/reset-password', methods=['POST'])
+@limiter.limit("5 per hour")  # Prevent reset token abuse
 def reset_password():
     """Reset password using token"""
     try:
