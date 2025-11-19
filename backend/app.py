@@ -6,6 +6,7 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 import os
 from werkzeug.utils import secure_filename
+import magic  # For MIME type validation
 from config.config import Config
 from src.rag_system import RAGSystem
 from src.stt_handler import STTHandler
@@ -692,6 +693,23 @@ def upload_pdf():
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+
+        # Verify MIME type (prevent fake PDFs - e.g., .txt renamed to .pdf)
+        try:
+            mime = magic.Magic(mime=True)
+            file_type = mime.from_file(filepath)
+
+            if file_type != 'application/pdf':
+                os.remove(filepath)  # Delete the invalid file
+                logger.warning(f"Invalid file type uploaded: {file_type} (expected application/pdf)")
+                add_breadcrumb('Invalid file type', category='upload', data={'file_type': file_type, 'filename': filename})
+                return jsonify({
+                    'success': False,
+                    'message': f'Invalid file type: {file_type}. Only PDF files are allowed.'
+                }), 400
+        except Exception as mime_error:
+            logger.warning(f"MIME type check failed: {mime_error}. Proceeding anyway.")
+            # Don't block upload if magic library fails - log and continue
 
         # Process document with user_id for multi-tenancy
         result = rag_system.add_document(filepath, user_id=user_id)
