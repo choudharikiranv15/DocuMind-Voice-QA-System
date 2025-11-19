@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout'
 import ChatContainer from './components/chat/ChatContainer'
 import Sidebar from './components/layout/Sidebar'
 import BrowserWarning from './components/common/BrowserWarning'
+import OnboardingTutorial from './components/common/OnboardingTutorial'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -21,6 +22,9 @@ function MainApp() {
 
     return (
         <Layout>
+            {/* Onboarding Tutorial - Shows on first visit */}
+            <OnboardingTutorial />
+
             <div className="flex h-screen overflow-hidden bg-[#0f172a]">
                 {/* Sidebar */}
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
