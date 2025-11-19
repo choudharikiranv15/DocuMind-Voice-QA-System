@@ -1,5 +1,5 @@
 # ==========================================
-# DocuMind Voice - Production Dependencies
+# DokGuru Voice - Production Dependencies
 # ==========================================
 # Minimal dependencies for production deployment
 # Full dev environment: see requirements.txt

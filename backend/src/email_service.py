@@ -76,7 +76,7 @@ class EmailService:
                     </div>
                     <div class="content">
                         <p>Hi there,</p>
-                        <p>We received a request to reset your password for your DocuMind Voice account.</p>
+                        <p>We received a request to reset your password for your DokGuru Voice account.</p>
                         <p>Click the button below to reset your password:</p>
                         <div style="text-align: center;">
                             <a href="{reset_link}" class="button">Reset Password</a>
@@ -89,7 +89,7 @@ class EmailService:
                         <p>If you didn't request a password reset, you can safely ignore this email.</p>
                     </div>
                     <div class="footer">
-                        <p>DocuMind Voice - Voice-Enabled PDF Q&A</p>
+                        <p>DokGuru Voice - Voice-Enabled PDF Q&A</p>
                         <p>This is an automated email, please do not reply.</p>
                     </div>
                 </div>
@@ -100,7 +100,7 @@ class EmailService:
             params = {
                 "from": self.from_email,
                 "to": [to_email],
-                "subject": "Reset Your Password - DocuMind Voice",
+                "subject": "Reset Your Password - DokGuru Voice",
                 "html": html_content
             }
 
@@ -159,7 +159,7 @@ class EmailService:
                     </div>
                     <div class="content">
                         <p>Hi there,</p>
-                        <p>Thank you for signing up for DocuMind Voice!</p>
+                        <p>Thank you for signing up for DokGuru Voice!</p>
                         <p>Enter this verification code to verify your email address:</p>
                         <div class="code">{verification_code}</div>
                         <p><strong>This code will expire in 24 hours.</strong></p>
@@ -170,7 +170,7 @@ class EmailService:
                         </ul>
                     </div>
                     <div class="footer">
-                        <p>DocuMind Voice - Voice-Enabled PDF Q&A</p>
+                        <p>DokGuru Voice - Voice-Enabled PDF Q&A</p>
                         <p>This is an automated email, please do not reply.</p>
                     </div>
                 </div>
@@ -181,7 +181,7 @@ class EmailService:
             params = {
                 "from": self.from_email,
                 "to": [to_email],
-                "subject": "Verify Your Email - DocuMind Voice",
+                "subject": "Verify Your Email - DokGuru Voice",
                 "html": html_content
             }
 
@@ -225,11 +225,11 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🎉 Welcome to DocuMind Voice!</h1>
+                        <h1>🎉 Welcome to DokGuru Voice!</h1>
                     </div>
                     <div class="content">
                         <p>{greeting}</p>
-                        <p>Welcome to DocuMind Voice - your AI-powered PDF assistant with voice support!</p>
+                        <p>Welcome to DokGuru Voice - your AI-powered PDF assistant with voice support!</p>
                         <h3>What you can do:</h3>
                         <ul>
                             <li>📄 Upload PDF documents</li>
@@ -246,7 +246,7 @@ class EmailService:
                         <p>💡 <strong>Tip:</strong> Verify your email to unlock 10 documents and 100 queries per day!</p>
                     </div>
                     <div class="footer">
-                        <p>DocuMind Voice - Voice-Enabled PDF Q&A</p>
+                        <p>DokGuru Voice - Voice-Enabled PDF Q&A</p>
                         <p>Need help? Reply to this email or contact support.</p>
                     </div>
                 </div>
@@ -257,7 +257,7 @@ class EmailService:
             params = {
                 "from": self.from_email,
                 "to": [to_email],
-                "subject": "Welcome to DocuMind Voice! 🎉",
+                "subject": "Welcome to DokGuru Voice! 🎉",
                 "html": html_content
             }
 

@@ -7,7 +7,7 @@ export default function OnboardingTutorial() {
 
     const steps = [
         {
-            title: "Welcome to DocuMind Voice! 👋",
+            title: "Welcome to DokGuru Voice! 👋",
             description: "Your AI-powered document assistant with multilingual voice support. Let's get you started!",
             icon: "🎓",
             action: "Get Started"
@@ -34,7 +34,7 @@ export default function OnboardingTutorial() {
             title: "You're All Set! 🎉",
             description: "Start uploading documents and asking questions. Need help? Check the docs or contact support.",
             icon: "✨",
-            action: "Start Using DocuMind"
+            action: "Start Using DokGuru"
         }
     ]
 
@@ -102,13 +102,12 @@ export default function OnboardingTutorial() {
                             <button
                                 key={i}
                                 onClick={() => setStep(i)}
-                                className={`h-2 rounded-full transition-all duration-300 ${
-                                    i === step
+                                className={`h-2 rounded-full transition-all duration-300 ${i === step
                                         ? 'w-8 bg-gradient-to-r from-cyan-500 to-purple-500'
                                         : i < step
-                                        ? 'w-2 bg-cyan-500/50'
-                                        : 'w-2 bg-white/20'
-                                }`}
+                                            ? 'w-2 bg-cyan-500/50'
+                                            : 'w-2 bg-white/20'
+                                    }`}
                                 aria-label={`Go to step ${i + 1}`}
                             />
                         ))}

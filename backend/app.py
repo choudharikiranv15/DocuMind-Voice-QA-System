@@ -1478,7 +1478,7 @@ def health_check():
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("DocuMind Voice - Multimodal RAG System")
+    print("dokguru Voice - Multimodal RAG System")
     print("=" * 70)
 
     # Run database migrations automatically

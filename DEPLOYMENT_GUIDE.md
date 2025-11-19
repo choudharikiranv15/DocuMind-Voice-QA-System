@@ -1,4 +1,4 @@
-# 🚀 DocuMind Voice - Production Deployment Guide
+# 🚀 DokGuru Voice - Production Deployment Guide
 
 **Production Ready: 95/100** | **Target Users: 150-200** | **Updated: 2025-11-19**
 
@@ -139,7 +139,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com
 
 ```bash
 # SSH into server
-cd /var/www/documind-voice/backend
+cd /var/www/DokGuru-voice/backend
 
 # Install dependencies
 python3.11 -m venv venv
@@ -159,17 +159,17 @@ gunicorn app:app -c gunicorn.conf.py
 # For production, use systemd or supervisor
 ```
 
-**Systemd Service** (`/etc/systemd/system/documind.service`):
+**Systemd Service** (`/etc/systemd/system/DokGuru.service`):
 ```ini
 [Unit]
-Description=DocuMind Voice Backend
+Description=DokGuru Voice Backend
 After=network.target
 
 [Service]
 User=www-data
-WorkingDirectory=/var/www/documind-voice/backend
-Environment="PATH=/var/www/documind-voice/backend/venv/bin"
-ExecStart=/var/www/documind-voice/backend/venv/bin/gunicorn app:app -c gunicorn.conf.py
+WorkingDirectory=/var/www/DokGuru-voice/backend
+Environment="PATH=/var/www/DokGuru-voice/backend/venv/bin"
+ExecStart=/var/www/DokGuru-voice/backend/venv/bin/gunicorn app:app -c gunicorn.conf.py
 Restart=always
 
 [Install]
@@ -177,9 +177,9 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable documind
-sudo systemctl start documind
-sudo systemctl status documind
+sudo systemctl enable DokGuru
+sudo systemctl start DokGuru
+sudo systemctl status DokGuru
 ```
 
 ---

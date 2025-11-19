@@ -1,4 +1,4 @@
-# Gunicorn configuration for DocuMind Voice Production Server
+# Gunicorn configuration for dokguru Voice Production Server
 # NOTE: Gunicorn is for Linux/Unix production environments only
 # For Windows development, use Flask dev server: python app.py
 # For Windows production, use Waitress: pip install waitress && waitress-serve --port=8080 app:app
@@ -34,7 +34,7 @@ capture_output = True
 enable_stdio_inheritance = True
 
 # Process naming
-proc_name = 'documind_voice'
+proc_name = 'DokGuru_voice'
 
 # Server mechanics
 daemon = False  # Run in foreground (required for most hosting platforms)

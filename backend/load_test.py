@@ -1,5 +1,5 @@
 """
-Production Load Testing Script for DocuMind Voice
+Production Load Testing Script for DokGuru Voice
 Tests system under realistic production scenarios with 200-300 concurrent users
 """
 
@@ -417,7 +417,7 @@ def print_summary():
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("DOCUMIND VOICE - PRODUCTION LOAD TEST")
+    print("DokGuru VOICE - PRODUCTION LOAD TEST")
     print("=" * 70)
     print(f"Target: {BASE_URL}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

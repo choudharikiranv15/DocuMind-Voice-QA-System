@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎓 DocuMind Voice
+# 🎓 dokguru Voice
 
 ### *Intelligent Document Analysis with Multilingual Voice Interface*
 
@@ -13,7 +13,7 @@
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#%EF%B8%8F-architecture) • [API](#-api-reference) • [Deployment](#-deployment)
 
-![DocuMind Voice](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
+![dokguru Voice](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
 
 </div>
 
@@ -21,9 +21,9 @@
 
 ## 📖 Overview
 
-**DocuMind Voice** is an enterprise-grade AI-powered document analysis platform that combines advanced RAG (Retrieval-Augmented Generation) technology with multilingual voice capabilities. Upload PDFs, ask questions in natural language, and receive intelligent responses with voice output in multiple languages.
+**dokguru Voice** is an enterprise-grade AI-powered document analysis platform that combines advanced RAG (Retrieval-Augmented Generation) technology with multilingual voice capabilities. Upload PDFs, ask questions in natural language, and receive intelligent responses with voice output in multiple languages.
 
-### 🎯 Why DocuMind Voice?
+### 🎯 Why dokguru Voice?
 
 - **🚀 Production Ready** - Enterprise features with secure authentication and rate limiting
 - **🌍 Multilingual** - Support for English, Hindi, and Kannada with auto-detection

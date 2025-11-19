@@ -4,17 +4,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: documind_postgres
+    container_name: dokguru_postgres
     environment:
-      POSTGRES_DB: documind
-      POSTGRES_USER: documind_user
-      POSTGRES_PASSWORD: documind_pass_change_in_production
+      POSTGRES_DB: dokguru
+      POSTGRES_USER: dokguru_user
+      POSTGRES_PASSWORD: dokguru_pass_change_in_production
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U documind_user"]
+      test: ["CMD-SHELL", "pg_isready -U dokguru_user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # Redis for caching and sessions
   redis:
     image: redis:7-alpine
-    container_name: documind_redis
+    container_name: dokguru_redis
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -37,7 +37,7 @@ services:
   # Qdrant Vector Database
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: documind_qdrant
+    container_name: dokguru_qdrant
     volumes:
       - qdrant_data:/qdrant/storage
     ports:
@@ -49,11 +49,11 @@ services:
   # Flask Backend (will be built later)
   # backend:
   #   build: .
-  #   container_name: documind_backend
+  #   container_name: dokguru_backend
   #   ports:
   #     - "8080:8080"
   #   environment:
-  #     - DATABASE_URL=postgresql://documind_user:documind_pass_change_in_production@postgres:5432/documind
+  #     - DATABASE_URL=postgresql://dokguru_user:dokguru_pass_change_in_production@postgres:5432/dokguru
   #     - REDIS_URL=redis://redis:6379/0
   #     - QDRANT_URL=http://qdrant:6333
   #   volumes:

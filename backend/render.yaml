@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: documind-voice-api
+    name: DokGuru-voice-api
     env: python
     region: oregon
     plan: free

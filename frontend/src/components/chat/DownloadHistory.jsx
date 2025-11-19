@@ -38,7 +38,7 @@ export default function DownloadHistory() {
 
     const downloadAsText = () => {
         try {
-            let text = `DocuMind Voice - Chat History\n`
+            let text = `DokGuru Voice - Chat History\n`
             text += `Exported: ${new Date().toLocaleString()}\n`
             text += `Total Messages: ${messages.length}\n`
             text += `${'='.repeat(60)}\n\n`
