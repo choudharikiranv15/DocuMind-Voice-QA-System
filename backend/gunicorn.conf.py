@@ -6,7 +6,10 @@ import multiprocessing
 import os
 
 # Server socket
-bind = "0.0.0.0:8080"
+# Use PORT environment variable from hosting platform (Render, Heroku, etc.)
+# Falls back to 8080 for local development
+port = os.getenv('PORT', '8080')
+bind = f"0.0.0.0:{port}"
 backlog = 2048
 
 # Worker processes
