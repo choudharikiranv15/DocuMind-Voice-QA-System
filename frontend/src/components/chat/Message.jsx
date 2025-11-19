@@ -32,7 +32,7 @@ export default function Message({ message }) {
                         setAudioReady(true)
                         setIsGeneratingAudio(false)
                         clearInterval(pollIntervalRef.current)
-                        console.log('✅ Audio ready:', audioUrl)
+                        if (import.meta.env.DEV) console.log('✅ Audio ready:', audioUrl)
                     } else {
                         pollAttemptsRef.current += 1
                         // Give up after 40 attempts (20 seconds)

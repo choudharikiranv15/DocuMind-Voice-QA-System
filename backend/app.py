@@ -106,15 +106,8 @@ csp = {
     'worker-src': ["'self'", 'blob:'],  # Allow web workers
 }
 
-# Security headers - simplified configuration for development
-# For production, enable force_https=True
-talisman = Talisman(
-    app,
-    force_https=False,  # Set to True in production
-    content_security_policy=None,  # Disable CSP for now (causes issues with React dev)
-)
-
-# CORS Configuration for production
+# CORS Configuration - MUST be initialized BEFORE Talisman
+# Otherwise Talisman intercepts OPTIONS preflight requests
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
 CORS(app, resources={
     r"/*": {
@@ -135,11 +128,20 @@ CORS(app, resources={
     }
 })
 
+# Security headers with Flask-Talisman
+# Initialized AFTER CORS to avoid blocking preflight requests
+talisman = Talisman(
+    app,
+    force_https=False,  # Set to True in production with HTTPS
+    content_security_policy=None,  # Disabled for React dev mode (enable in production)
+    content_security_policy_nonce_in=['script-src']
+)
+
 # Rate limiter configuration
-# Uses Redis if available (Upstash), falls back to in-memory
-upstash_url = os.getenv('UPSTASH_REDIS_REST_URL')
-upstash_token = os.getenv('UPSTASH_REDIS_REST_TOKEN')
-storage_uri = f"redis://{upstash_url.replace('https://', '')}?password={upstash_token}" if upstash_url and upstash_token else "memory://"
+# Uses Redis Cloud (standard Redis protocol) for persistent rate limiting
+# Falls back to in-memory if REDIS_URL not configured
+redis_url = os.getenv('REDIS_URL')  # Redis Cloud: redis://user:pass@host:port
+storage_uri = redis_url if redis_url else "memory://"
 
 limiter = Limiter(
     app=app,
@@ -149,10 +151,22 @@ limiter = Limiter(
     strategy="fixed-window"
 )
 
+# Log rate limiter storage type
+logger.info(f"Rate limiter using: {'Redis (persistent)' if redis_url else 'Memory (resets on restart)'}")
+
 app.secret_key = os.getenv('SECRET_KEY')  # Required - validated above
 app.config['UPLOAD_FOLDER'] = './data/pdfs'
 app.config['AUDIO_FOLDER'] = './data/audio'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file upload
+
+# Error handler for file size exceeded
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file size exceeded error"""
+    return jsonify({
+        'success': False,
+        'message': 'File too large. Maximum file size is 50MB.'
+    }), 413
 
 # Create necessary directories
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -419,6 +433,7 @@ def reset_password():
 
 @app.route('/auth/change-password', methods=['POST'])
 @require_auth
+@limiter.limit("10 per hour")  # Prevent password change abuse
 def change_password():
     """Change password for logged-in user"""
     try:
@@ -467,6 +482,7 @@ def change_password():
 
 @app.route('/auth/change-email', methods=['POST'])
 @require_auth
+@limiter.limit("5 per hour")  # Prevent email change abuse
 def change_email():
     """Change email for logged-in user"""
     try:
@@ -1437,6 +1453,7 @@ def get_cache_stats():
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/health', methods=['GET'])
+@limiter.exempt  # Exempt from rate limiting for monitoring/load balancers
 def health_check():
     """Health check endpoint with Redis status"""
     try:

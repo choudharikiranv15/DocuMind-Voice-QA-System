@@ -22,7 +22,7 @@ export const initPostHog = () => {
     });
 
     posthogInitialized = true;
-    console.log('✅ PostHog initialized');
+    if (import.meta.env.DEV) console.log('✅ PostHog initialized');
     return true;
   } catch (error) {
     console.error('❌ Failed to initialize PostHog:', error);

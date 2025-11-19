@@ -25,7 +25,7 @@ export const initSentry = () => {
       release: import.meta.env.VITE_APP_VERSION || 'dev',
     });
 
-    console.log('✅ Sentry initialized');
+    if (import.meta.env.DEV) console.log('✅ Sentry initialized');
     return true;
   } catch (error) {
     console.error('❌ Failed to initialize Sentry:', error);

@@ -25,7 +25,7 @@ export default function BrowserVoiceRecorder({ onTranscript, disabled }) {
 
         recognition.onstart = () => {
             setIsListening(true)
-            console.log('Speech recognition started')
+            if (import.meta.env.DEV) console.log('Speech recognition started')
         }
 
         recognition.onresult = (event) => {
@@ -73,7 +73,7 @@ export default function BrowserVoiceRecorder({ onTranscript, disabled }) {
 
         recognition.onend = () => {
             setIsListening(false)
-            console.log('Speech recognition ended')
+            if (import.meta.env.DEV) console.log('Speech recognition ended')
         }
 
         recognitionRef.current = recognition
