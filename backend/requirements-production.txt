@@ -53,6 +53,7 @@ numpy>=1.24.0,<2.0.0
 # ==========================================
 pypdf==3.17.4
 pdfplumber==0.10.3
+PyMuPDF==1.23.8
 # camelot-py==1.0.9  # Removed: Conflicts with pdfplumber's pdfminer.six version
 tabula-py==2.10.0
 # pdfminer.six - Installed automatically by pdfplumber (20221105)
