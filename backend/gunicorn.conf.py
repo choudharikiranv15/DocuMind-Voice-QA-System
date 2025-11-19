@@ -1,4 +1,7 @@
 # Gunicorn configuration for DocuMind Voice Production Server
+# NOTE: Gunicorn is for Linux/Unix production environments only
+# For Windows development, use Flask dev server: python app.py
+# For Windows production, use Waitress: pip install waitress && waitress-serve --port=8080 app:app
 import multiprocessing
 import os
 
