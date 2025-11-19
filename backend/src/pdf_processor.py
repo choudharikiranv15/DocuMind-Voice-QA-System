@@ -1,5 +1,11 @@
 # src/pdf_processor.py
-import fitz  # PyMuPDF
+# Optional PyMuPDF import (for image extraction)
+try:
+    import fitz  # PyMuPDF
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
 import pdfplumber
 import pytesseract
 from PIL import Image
@@ -29,22 +35,24 @@ class PDFProcessor:
         """Extract all content types from PDF"""
         chunks = []
         doc = None
-        
+
         try:
-            # Process with PyMuPDF for images and basic text
             self.logger.info(f"Opening PDF: {pdf_path}")
-            doc = fitz.open(pdf_path)
-            
+
             # Process with pdfplumber for tables and structured text
             with pdfplumber.open(pdf_path) as pdf:
-                total_pages = len(doc)
+                total_pages = len(pdf.pages)
                 self.logger.info(f"Processing {total_pages} pages")
-                
+
+                # Only open PyMuPDF if available (for image extraction)
+                if HAS_PYMUPDF:
+                    doc = fitz.open(pdf_path)
+
                 for page_num in range(total_pages):
                     try:
                         self.logger.info(f"Processing page {page_num + 1}/{total_pages}")
-                        page_fitz = doc[page_num]
                         page_plumber = pdf.pages[page_num]
+                        page_fitz = doc[page_num] if HAS_PYMUPDF and doc else None
                         
                         # Extract text chunks
                         try:
