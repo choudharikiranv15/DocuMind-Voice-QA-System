@@ -929,7 +929,7 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Pro',
-                                    price: '₹XXX',
+                                    price: '₹1**',
                                     period: '/month',
                                     features: [
                                         '50 documents',
@@ -947,7 +947,7 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Enterprise',
-                                    price: '₹XXX',
+                                    price: '₹***',
                                     period: '/month',
                                     features: [
                                         'Unlimited documents',
