@@ -55,7 +55,7 @@ pypdf==3.17.4
 pdfplumber==0.10.3
 camelot-py==1.0.9
 tabula-py==2.10.0
-pdfminer.six==20251107
+# pdfminer.six==20251107  # Removed: Conflict with pdfplumber which needs 20221105
 opencv-python-headless==4.11.0.86
 pytesseract==0.3.10
 
