@@ -53,10 +53,10 @@ numpy>=1.24.0,<2.0.0
 # ==========================================
 pypdf==3.17.4
 pdfplumber==0.10.3
-camelot-py==1.0.9
+# camelot-py==1.0.9  # Removed: Conflicts with pdfplumber's pdfminer.six version
 tabula-py==2.10.0
-# pdfminer.six==20251107  # Removed: Conflict with pdfplumber which needs 20221105
-opencv-python-headless==4.11.0.86
+# pdfminer.six - Installed automatically by pdfplumber (20221105)
+# opencv-python-headless==4.11.0.86  # Removed: Only needed for camelot-py
 pytesseract==0.3.10
 
 # ==========================================
