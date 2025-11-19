@@ -334,7 +334,7 @@ export default function Landing() {
                                     variants={fadeInUp}
                                     className="text-xl text-gray-300 leading-relaxed"
                                 >
-                                    Upload PDFs, ask questions, and get AI-powered voice answers — in English or Kannada.
+                                    Upload PDFs, ask questions, and get AI-powered voice answers — in English, Hindi, or Kannada.
                                 </motion.p>
 
                                 {/* Tagline */}
@@ -929,8 +929,8 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Pro',
-                                    price: 'Coming Soon',
-                                    period: '',
+                                    price: '₹XXX',
+                                    period: '/month',
                                     features: [
                                         '50 documents',
                                         '500 queries/day',
@@ -947,8 +947,8 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Enterprise',
-                                    price: 'Coming Soon',
-                                    period: '',
+                                    price: '₹XXX',
+                                    period: '/month',
                                     features: [
                                         'Unlimited documents',
                                         'Unlimited queries',
