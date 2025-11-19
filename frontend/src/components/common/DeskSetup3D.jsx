@@ -65,12 +65,12 @@ export default function DeskSetup3D() {
                                 boxShadow: '0 20px 60px rgba(6, 182, 212, 0.3)'
                             }}
                         >
-                            {/* Screen Content - DocGuru Interface */}
+                            {/* Screen Content - DokGuru Interface */}
                             <div className="w-full h-full bg-[#0a0f1e] rounded-xl overflow-hidden relative border-2 border-cyan-500/30">
                                 {/* Screen Glow */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-purple-500/20"></div>
 
-                                {/* DocGuru Logo on Screen */}
+                                {/* DokGuru Logo on Screen */}
                                 <div className="relative z-10 flex flex-col items-center justify-center h-full p-4">
                                     <motion.div
                                         animate={{
@@ -89,7 +89,7 @@ export default function DeskSetup3D() {
                                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.48.41-2.86 1.12-4.06l10.94 10.94C14.86 19.59 13.48 20 12 20zm6.88-3.94L8.94 6.12C10.14 5.41 11.52 5 13 5c4.41 0 8 3.59 8 8 0 1.48-.41 2.86-1.12 4.06z"/>
                                             </svg>
                                         </div>
-                                        <span className="text-white text-xl font-bold">DocGuru</span>
+                                        <span className="text-white text-xl font-bold">DokGuru</span>
                                     </motion.div>
 
                                     {/* Animated Lines */}

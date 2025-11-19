@@ -273,7 +273,7 @@ export default function Landing() {
                         animate={{ opacity: 1, x: 0 }}
                         className="flex items-center gap-3"
                     >
-                        {/* DocGuru Logo with Wave Icon */}
+                        {/* DokGuru Logo with Wave Icon */}
                         <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50">
                             <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.48.41-2.86 1.12-4.06l10.94 10.94C14.86 19.59 13.48 20 12 20zm6.88-3.94L8.94 6.12C10.14 5.41 11.52 5 13 5c4.41 0 8 3.59 8 8 0 1.48-.41 2.86-1.12 4.06z"/>
@@ -327,7 +327,7 @@ export default function Landing() {
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500">
                                         Learn smarter
                                     </span>{' '}
-                                    with DocGuru.
+                                    with DokGuru.
                                 </motion.h1>
 
                                 <motion.p
@@ -391,7 +391,7 @@ export default function Landing() {
                                             {/* Webcam */}
                                             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-700 rounded-full border border-gray-600 z-10"></div>
 
-                                            {/* Screen Content - DocGuru Chat Interface */}
+                                            {/* Screen Content - DokGuru Chat Interface */}
                                             <div className="bg-[#0a0f1e] rounded-xl overflow-hidden aspect-video relative shadow-2xl">
                                                 {/* Chat Header */}
                                                 <div className="bg-[#1e293b] border-b border-gray-800 px-6 py-2.5 flex items-center justify-between">
@@ -401,7 +401,7 @@ export default function Landing() {
                                                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.48.41-2.86 1.12-4.06l10.94 10.94C14.86 19.59 13.48 20 12 20zm6.88-3.94L8.94 6.12C10.14 5.41 11.52 5 13 5c4.41 0 8 3.59 8 8 0 1.48-.41 2.86-1.12 4.06z"/>
                                                             </svg>
                                                         </div>
-                                                        <span className="text-white text-base font-semibold">DocGuru</span>
+                                                        <span className="text-white text-base font-semibold">DokGuru</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -467,7 +467,7 @@ export default function Landing() {
                                 variants={fadeInUp}
                                 className="text-4xl md:text-5xl font-bold text-white mb-4"
                             >
-                                Why Choose DocGuru?
+                                Why Choose DokGuru?
                             </motion.h2>
                             <motion.p
                                 variants={fadeInUp}
@@ -492,8 +492,8 @@ export default function Landing() {
                                 },
                                 {
                                     icon: '🎙️',
-                                    title: 'Voice & Bilingual Output',
-                                    description: 'Ask in English, get natural voice responses in both English and Kannada'
+                                    title: 'Voice & Multilingual Output',
+                                    description: 'Ask in English, get natural voice responses in English, Hindi, and Kannada'
                                 },
                                 {
                                     icon: '⚡',
@@ -799,15 +799,15 @@ export default function Landing() {
                                         </div>
                                     </div>
                                     <h3 className="text-2xl font-semibold text-white mb-3">Get instant answers in your language</h3>
-                                    <p className="text-gray-400 leading-relaxed">Receive accurate AI answers with voice output in English or Kannada.</p>
+                                    <p className="text-gray-400 leading-relaxed">Receive accurate AI answers with voice output in English, Hindi, or Kannada.</p>
                                 </div>
                             </motion.div>
                         </motion.div>
                     </div>
                 </section>
 
-                {/* Testimonials */}
-                <section className="py-20 px-6 bg-black/30 backdrop-blur-sm">
+                {/* Testimonials - Commented out until we collect real feedback */}
+                {/* <section className="py-20 px-6 bg-black/30 backdrop-blur-sm">
                     <div className="max-w-7xl mx-auto">
                         <motion.div
                             initial="hidden"
@@ -836,7 +836,7 @@ export default function Landing() {
                                     name: 'Priya Sharma',
                                     role: 'Engineering Student, Bangalore',
                                     avatar: '👩‍🎓',
-                                    text: 'DocGuru makes English PDFs simple to understand. It feels like an AI teacher guiding me through every concept!'
+                                    text: 'DokGuru makes English PDFs simple to understand. It feels like an AI teacher guiding me through every concept!'
                                 },
                                 {
                                     name: 'Rakesh Kumar',
@@ -848,7 +848,7 @@ export default function Landing() {
                                     name: 'Anjali Rao',
                                     role: 'CA Student, Hubli',
                                     avatar: '👩‍💼',
-                                    text: 'Saved me countless hours during exam prep. DocGuru explains financial concepts in simple language instantly.'
+                                    text: 'Saved me countless hours during exam prep. DokGuru explains financial concepts in simple language instantly.'
                                 }
                             ].map((testimonial, i) => (
                                 <motion.div
@@ -876,7 +876,7 @@ export default function Landing() {
                             ))}
                         </motion.div>
                     </div>
-                </section>
+                </section> */}
 
                 {/* Pricing Section */}
                 <section id="pricing" className="py-20 px-6">
@@ -929,8 +929,8 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Pro',
-                                    price: '₹149',
-                                    period: '/month',
+                                    price: 'Coming Soon',
+                                    period: '',
                                     features: [
                                         '50 documents',
                                         '500 queries/day',
@@ -947,8 +947,8 @@ export default function Landing() {
                                 },
                                 {
                                     name: 'Enterprise',
-                                    price: '₹499',
-                                    period: '/month',
+                                    price: 'Coming Soon',
+                                    period: '',
                                     features: [
                                         'Unlimited documents',
                                         'Unlimited queries',
@@ -959,7 +959,7 @@ export default function Landing() {
                                         'Dedicated support',
                                         'Analytics dashboard'
                                     ],
-                                    cta: 'Contact Sales',
+                                    cta: 'Coming Soon',
                                     popular: false,
                                     badge: 'For Teams',
                                     link: '#'
@@ -1128,7 +1128,7 @@ export default function Landing() {
                         {/* Bottom Bar */}
                         <div className="pt-8 border-t border-white/10 text-center">
                             <p className="text-gray-400 text-sm mb-2">
-                                © 2025 DocGuru. All rights reserved.
+                                © 2025 DokGuru. All rights reserved.
                             </p>
                             <p className="text-gray-400 text-sm">
                                 Made with ❤️ by{' '}
