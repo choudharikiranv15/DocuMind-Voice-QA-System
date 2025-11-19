@@ -16,6 +16,7 @@ from src.auth.jwt_handler import generate_jwt, verify_jwt
 from src.auth.decorators import require_auth
 from src.limits import UserLimits
 from src.error_tracking import init_sentry, capture_exception, add_breadcrumb, set_user_context
+from sentry_sdk import set_context, set_user
 from src.email_service import get_email_service
 from src.analytics import get_analytics_service
 from src.auth.password_reset import PasswordResetService
@@ -174,6 +175,26 @@ email_service = get_email_service()  # Email service
 analytics = get_analytics_service()  # Analytics service
 password_reset_service = PasswordResetService(rag_system.cache)  # Password reset service
 
+# ============= SENTRY CONTEXT ENRICHMENT =============
+@app.before_request
+def add_sentry_context():
+    """Enrich Sentry errors with user and request context"""
+    # Add user context if authenticated
+    if hasattr(request, 'user_id'):
+        set_user({
+            "id": request.user_id,
+            "email": getattr(request, 'user_email', None),
+        })
+
+    # Add request context
+    set_context("request_info", {
+        "url": request.url,
+        "method": request.method,
+        "ip": request.remote_addr,
+        "user_agent": request.headers.get('User-Agent', 'Unknown'),
+    })
+
+# ============= ROUTES =============
 @app.route('/')
 def index():
     return render_template('index.html')
