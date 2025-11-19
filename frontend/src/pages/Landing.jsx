@@ -280,7 +280,7 @@ export default function Landing() {
                             </svg>
                         </div>
                         <span className="text-2xl font-bold text-white">
-                            Doc<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
+                            Dok<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
                         </span>
                     </motion.div>
                     <motion.div
@@ -1059,7 +1059,7 @@ export default function Landing() {
                 {/* Footer */}
                 <footer className="bg-black/40 backdrop-blur-sm border-t border-white/10 py-12 px-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="grid md:grid-cols-4 gap-8 mb-8">
+                        <div className="grid md:grid-cols-3 gap-8 mb-8">
                             {/* Brand */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3">
@@ -1069,7 +1069,7 @@ export default function Landing() {
                                         </svg>
                                     </div>
                                     <span className="text-xl font-bold text-white">
-                                        Doc<span className="text-cyan-400">Guru</span>
+                                        Dok<span className="text-cyan-400">Guru</span>
                                     </span>
                                 </div>
                                 <p className="text-gray-400 text-sm">
@@ -1088,23 +1088,11 @@ export default function Landing() {
                                 </div>
                             </div>
 
-                            {/* Product */}
-                            <div>
-                                <h4 className="text-white font-semibold mb-4">Product</h4>
-                                <ul className="space-y-2">
-                                    {['Features', 'Pricing', 'Security', 'Roadmap', 'API Docs'].map((item, i) => (
-                                        <li key={i}>
-                                            <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">{item}</a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
                             {/* Company */}
                             <div>
                                 <h4 className="text-white font-semibold mb-4">Company</h4>
                                 <ul className="space-y-2">
-                                    {['About', 'Blog', 'Careers', 'Press Kit', 'Contact'].map((item, i) => (
+                                    {['About', 'Blog', 'Careers', 'Contact'].map((item, i) => (
                                         <li key={i}>
                                             <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">{item}</a>
                                         </li>
