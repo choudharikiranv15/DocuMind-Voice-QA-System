@@ -45,8 +45,8 @@ huggingface-hub==0.36.0
 # ==========================================
 sentence-transformers==2.7.0
 chromadb==1.0.20
-torch==2.7.1
-numpy==1.26.4
+# torch==2.7.1  # Will be installed as dependency of sentence-transformers
+numpy>=1.24.0,<2.0.0
 
 # ==========================================
 # PDF PROCESSING
@@ -63,8 +63,8 @@ pytesseract==0.3.10
 # TEXT-TO-SPEECH (TTS)
 # ==========================================
 gTTS==2.5.4
-TTS==0.22.0
-azure-cognitiveservices-speech==1.47.0
+# TTS==0.22.0  # Removed: Heavy dependency, causes build failures on Render
+# azure-cognitiveservices-speech==1.47.0  # Optional: Only if AZURE_SPEECH_KEY is set
 pydub==0.25.1
 
 # ==========================================

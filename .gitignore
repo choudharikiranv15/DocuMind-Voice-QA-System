@@ -10,6 +10,8 @@ venv/
 
 # Environment variables and secrets
 .env
+.env.production
+backend/.env.production
 config/.env
 
 # Node modules (frontend dependencies)
