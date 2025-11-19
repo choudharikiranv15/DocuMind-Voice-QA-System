@@ -53,11 +53,11 @@ def validate_environment():
 
     for var, description in REQUIRED_VARS.items():
         if not os.getenv(var):
-            missing_required.append(f"  ❌ {var}: {description}")
+            missing_required.append(f"  [REQUIRED] {var}: {description}")
 
     for var, description in OPTIONAL_VARS.items():
         if not os.getenv(var):
-            missing_optional.append(f"  ⚠️  {var}: {description}")
+            missing_optional.append(f"  [OPTIONAL] {var}: {description}")
 
     if missing_required:
         print("\n" + "="*70)
@@ -106,15 +106,12 @@ csp = {
     'worker-src': ["'self'", 'blob:'],  # Allow web workers
 }
 
-Talisman(
+# Security headers - simplified configuration for development
+# For production, enable force_https=True
+talisman = Talisman(
     app,
-    content_security_policy=csp,
-    content_security_policy_nonce_in=['script-src'],
-    force_https=False,  # Set to True in production with HTTPS
-    strict_transport_security=True,
-    strict_transport_security_max_age=31536000,  # 1 year
-    x_content_type_options=True,  # Prevent MIME sniffing
-    x_frame_options='DENY',  # Prevent clickjacking
+    force_https=False,  # Set to True in production
+    content_security_policy=None,  # Disable CSP for now (causes issues with React dev)
 )
 
 # CORS Configuration for production
