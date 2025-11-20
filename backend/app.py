@@ -292,23 +292,6 @@ logger.info("="*70)
 logger.info("App will start and bind to port even if services failed!")
 logger.info("="*70)
 
-# ============= HEALTH CHECK (ALWAYS WORKS) =============
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Simple health check endpoint - always returns 200 even if services are down"""
-    return jsonify({
-        'status': 'healthy',
-        'app': 'DokGuru Voice API',
-        'flask': 'running',
-        'services': {
-            'database': db is not None,
-            'rag_system': rag_system is not None,
-            'stt': stt_handler is not None,
-            'tts': tts_handler is not None,
-            'analytics': analytics is not None
-        }
-    }), 200
-
 # ============= SENTRY CONTEXT ENRICHMENT =============
 @app.before_request
 def add_sentry_context():
