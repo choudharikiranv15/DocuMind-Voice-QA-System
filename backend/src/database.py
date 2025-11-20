@@ -417,3 +417,42 @@ class Database:
             import logging
             logging.error(f"Database error getting feedback analytics: {e}")
             return {}
+
+    def get_all_ai_response_feedback(self, limit: int = 100) -> list:
+        """Get all AI response feedback (admin only)"""
+        try:
+            response = self.client.table('feedback') \
+                .select('*') \
+                .order('created_at', desc=True) \
+                .limit(limit) \
+                .execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting AI response feedback: {e}")
+            return []
+
+    def get_ai_feedback_analytics(self) -> dict:
+        """Get AI response feedback analytics (admin only)"""
+        try:
+            response = self.client.table('feedback').select('*').execute()
+            feedbacks = response.data if response.data else []
+
+            # Count likes and dislikes
+            likes = len([f for f in feedbacks if f.get('rating') == 1])
+            dislikes = len([f for f in feedbacks if f.get('rating') == -1])
+            total = len(feedbacks)
+
+            # Calculate satisfaction rate
+            satisfaction_rate = (likes / total * 100) if total > 0 else 0
+
+            return {
+                'total': total,
+                'likes': likes,
+                'dislikes': dislikes,
+                'satisfaction_rate': round(satisfaction_rate, 1)
+            }
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting AI feedback analytics: {e}")
+            return {}

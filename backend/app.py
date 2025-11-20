@@ -6,7 +6,17 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 import os
 from werkzeug.utils import secure_filename
-import magic  # For MIME type validation
+
+# Try to import python-magic (requires libmagic on Linux)
+# If it fails, use fallback MIME detection from filename
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    import mimetypes
+    print("WARNING: python-magic not available (libmagic missing). Using fallback MIME detection.")
+
 from config.config import Config
 from src.rag_system import RAGSystem
 from src.stt_handler import STTHandler
@@ -936,8 +946,15 @@ def upload_pdf():
 
         # Verify MIME type (prevent fake PDFs - e.g., .txt renamed to .pdf)
         try:
-            mime = magic.Magic(mime=True)
-            file_type = mime.from_file(filepath)
+            if MAGIC_AVAILABLE:
+                # Use python-magic for accurate MIME detection
+                mime = magic.Magic(mime=True)
+                file_type = mime.from_file(filepath)
+            else:
+                # Fallback: use mimetypes module (less accurate, filename-based)
+                file_type, _ = mimetypes.guess_type(filepath)
+                if file_type is None:
+                    file_type = 'application/octet-stream'
 
             if file_type != 'application/pdf':
                 os.remove(filepath)  # Delete the invalid file
@@ -1776,6 +1793,30 @@ def admin_analytics():
         })
     except Exception as e:
         logger.error(f"Admin analytics error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/ai-feedback', methods=['GET'])
+@require_admin
+def admin_get_ai_feedback():
+    """Get AI response feedback with analytics (admin only)"""
+    try:
+        limit = int(request.args.get('limit', 100))
+
+        # Get all AI response feedback (query, response, rating)
+        feedback = db.get_all_ai_response_feedback(limit=limit) if db else []
+
+        # Get analytics
+        analytics = db.get_ai_feedback_analytics() if db else {}
+
+        return jsonify({
+            'success': True,
+            'feedback': feedback,
+            'analytics': analytics,
+            'count': len(feedback)
+        })
+    except Exception as e:
+        logger.error(f"Admin get AI feedback error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
