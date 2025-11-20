@@ -6,19 +6,23 @@ import multiprocessing
 import os
 
 # Server socket
-# Use PORT environment variable from hosting platform (Render, Heroku, etc.)
+# CRITICAL: Render requires binding to 0.0.0.0 with PORT environment variable
+# Render provides PORT automatically (usually 10000)
 # Falls back to 8080 for local development
 port = os.getenv('PORT', '8080')
 bind = f"0.0.0.0:{port}"
 backlog = 2048
 
+# Log the binding address for debugging
+print(f"[Gunicorn Config] Binding to {bind}")
+
 # Worker processes
-# Recommended: 2-4 x CPU cores for CPU-bound apps
-# For I/O-bound apps like this (waiting for LLM/DB), 4 workers is good for small servers
-workers = 4
+# Render Free Tier: 0.5 GB RAM - use fewer workers to avoid OOM
+# For I/O-bound apps like this (waiting for LLM/DB), 2 workers is optimal for free tier
+workers = int(os.getenv('GUNICORN_WORKERS', '2'))  # Configurable via env var
 worker_class = 'sync'
 worker_connections = 1000
-threads = 2  # Allows 8 concurrent requests (4 workers × 2 threads)
+threads = 2  # Allows 4 concurrent requests (2 workers × 2 threads)
 timeout = 120  # 2 minutes for long PDF processing and LLM responses
 keepalive = 5
 
@@ -61,7 +65,12 @@ preload_app = True
 # Worker lifecycle hooks
 def on_starting(server):
     """Called just before the master process is initialized."""
-    server.log.info("Gunicorn master starting")
+    server.log.info("=" * 60)
+    server.log.info("DokGuru Voice - Gunicorn Starting")
+    server.log.info("=" * 60)
+    server.log.info(f"Binding to: {bind}")
+    server.log.info(f"Workers: {workers}, Threads: {threads}")
+    server.log.info("=" * 60)
 
 def on_reload(server):
     """Called to recycle workers during reload."""
@@ -69,8 +78,12 @@ def on_reload(server):
 
 def when_ready(server):
     """Called just after the server is started."""
-    server.log.info(f"Gunicorn server ready. Workers: {workers}, Threads: {threads}")
-    server.log.info(f"Max concurrent requests: {workers * threads}")
+    server.log.info("=" * 60)
+    server.log.info("✓ Gunicorn server READY")
+    server.log.info(f"✓ Listening on: {bind}")
+    server.log.info(f"✓ Workers: {workers}, Threads per worker: {threads}")
+    server.log.info(f"✓ Max concurrent requests: {workers * threads}")
+    server.log.info("=" * 60)
 
 def worker_int(worker):
     """Called when a worker receives the INT or QUIT signal."""
