@@ -362,8 +362,8 @@ def signup():
         # Create user
         user = db.create_user(email, password_hash, role, institution, occupation)
 
-        # Generate JWT
-        token = generate_jwt(user['id'], user['email'])
+        # Generate JWT (new users are not admin by default)
+        token = generate_jwt(user['id'], user['email'], user.get('is_admin', False))
 
         # Track signup event
         analytics.track_signup(user['id'], email, role)
@@ -377,6 +377,7 @@ def signup():
                 'id': user['id'],
                 'email': user['email'],
                 'role': user.get('role'),
+                'is_admin': user.get('is_admin', False),
                 'institution': user.get('institution')
             }
         })
@@ -422,8 +423,8 @@ def login():
         if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
             return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
-        # Generate JWT
-        token = generate_jwt(user['id'], user['email'])
+        # Generate JWT with is_admin flag
+        token = generate_jwt(user['id'], user['email'], user.get('is_admin', False))
 
         # Track login event
         analytics.track_login(user['id'], user['email'])
@@ -437,6 +438,7 @@ def login():
                 'id': user['id'],
                 'email': user['email'],
                 'role': user.get('role'),
+                'is_admin': user.get('is_admin', False),
                 'is_verified': user.get('is_verified', False)
             }
         })
@@ -461,6 +463,8 @@ def get_current_user():
             'user': {
                 'id': user['id'],
                 'email': user['email'],
+                'is_admin': user.get('is_admin', False),
+                'role': user.get('role'),
                 'created_at': user['created_at'].isoformat() if hasattr(user['created_at'], 'isoformat') else str(user['created_at'])
             }
         })

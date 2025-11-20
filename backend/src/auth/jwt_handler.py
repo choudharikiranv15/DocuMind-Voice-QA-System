@@ -14,7 +14,7 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
 
 
-def generate_jwt(user_id: str, email: str) -> str:
+def generate_jwt(user_id: str, email: str, is_admin: bool = False) -> str:
     """Generate JWT token for user"""
     if not JWT_SECRET:
         raise ValueError("JWT_SECRET not configured")
@@ -22,6 +22,7 @@ def generate_jwt(user_id: str, email: str) -> str:
     payload = {
         "user_id": user_id,
         "email": email,
+        "is_admin": is_admin,
         "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
         "iat": datetime.utcnow()
     }
