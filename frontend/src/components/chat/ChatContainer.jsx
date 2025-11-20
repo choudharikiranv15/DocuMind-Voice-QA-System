@@ -95,16 +95,16 @@ export default function ChatContainer() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.4, duration: 0.5 }}
-                                className="mb-8"
+                                className="mb-6 md:mb-8 px-4"
                             >
-                                <h2 className="text-5xl font-bold text-white mb-3">
+                                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">
                                     {greeting}{userName && `, ${userName}`}! 👋
                                 </h2>
                                 <motion.p
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.6, duration: 0.5 }}
-                                    className="text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2"
+                                    className="text-xl sm:text-2xl md:text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2"
                                 >
                                     Your AI Document Teacher
                                 </motion.p>
@@ -112,7 +112,7 @@ export default function ChatContainer() {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.8, duration: 0.5 }}
-                                    className="text-gray-400 text-lg"
+                                    className="text-gray-400 text-base md:text-lg"
                                 >
                                     Upload your documents and start asking questions using voice or text
                                 </motion.p>

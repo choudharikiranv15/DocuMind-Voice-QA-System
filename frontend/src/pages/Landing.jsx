@@ -267,51 +267,52 @@ export default function Landing() {
             {/* Content */}
             <div className="relative z-10">
                 {/* Navigation */}
-                <nav className="p-6 flex justify-between items-center backdrop-blur-sm">
+                <nav className="p-4 md:p-6 flex justify-between items-center backdrop-blur-sm">
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-3"
+                        className="flex items-center gap-2 md:gap-3"
                     >
                         {/* DokGuru Logo with Wave Icon */}
-                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50">
-                            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/50">
+                            <svg className="w-5 h-5 md:w-6 md:h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.48.41-2.86 1.12-4.06l10.94 10.94C14.86 19.59 13.48 20 12 20zm6.88-3.94L8.94 6.12C10.14 5.41 11.52 5 13 5c4.41 0 8 3.59 8 8 0 1.48-.41 2.86-1.12 4.06z"/>
                             </svg>
                         </div>
-                        <span className="text-2xl font-bold text-white">
+                        <span className="text-xl md:text-2xl font-bold text-white">
                             Dok<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
                         </span>
                     </motion.div>
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex gap-8 items-center"
+                        className="flex gap-3 md:gap-8 items-center"
                     >
                         <a href="#features" className="text-gray-300 hover:text-cyan-400 transition-colors hidden md:block">Features</a>
                         <a href="#pricing" className="text-gray-300 hover:text-cyan-400 transition-colors hidden md:block">Pricing</a>
                         <Link
                             to="/login"
-                            className="text-gray-300 hover:text-white transition-colors"
+                            className="text-gray-300 hover:text-white transition-colors text-sm md:text-base"
                         >
                             Login
                         </Link>
                         <Link
                             to="/signup"
-                            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-200 hover:scale-105 shadow-lg shadow-purple-500/50"
+                            className="px-3 py-1.5 md:px-6 md:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm md:text-base rounded-xl transition-all duration-200 hover:scale-105 shadow-lg shadow-purple-500/50"
                         >
-                            Try Free Now
+                            <span className="hidden sm:inline">Try Free Now</span>
+                            <span className="sm:hidden">Sign Up</span>
                         </Link>
                     </motion.div>
                 </nav>
 
                 {/* Hero Section with Wave Background */}
-                <section ref={heroRef} className="min-h-[90vh] flex items-center justify-center px-6 py-20 relative">
+                <section ref={heroRef} className="min-h-[90vh] flex items-center justify-center px-4 md:px-6 py-12 md:py-20 relative">
                     {/* Wave Background */}
                     <WaveBackground />
 
                     <div className="max-w-7xl w-full relative z-10">
-                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                        <div className="grid lg:grid-cols-2 gap-6 md:gap-12 items-center">
                             {/* Left: Text Content */}
                             <motion.div
                                 initial="hidden"
@@ -454,7 +455,7 @@ export default function Landing() {
                 </section>
 
                 {/* Features Section */}
-                <section id="features" className="py-20 px-6 bg-black/30 backdrop-blur-sm">
+                <section id="features" className="py-12 md:py-20 px-4 md:px-6 bg-black/30 backdrop-blur-sm">
                     <div className="max-w-7xl mx-auto">
                         <motion.div
                             initial="hidden"
@@ -482,7 +483,7 @@ export default function Landing() {
                             whileInView="visible"
                             viewport={{ once: true }}
                             variants={staggerContainer}
-                            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8"
+                            className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8"
                         >
                             {[
                                 {
@@ -522,7 +523,7 @@ export default function Landing() {
                 </section>
 
                 {/* How It Works */}
-                <section id="how-it-works" className="py-20 px-6">
+                <section id="how-it-works" className="py-12 md:py-20 px-4 md:px-6">
                     <div className="max-w-7xl mx-auto">
                         <motion.div
                             initial="hidden"
@@ -544,14 +545,14 @@ export default function Landing() {
                             whileInView="visible"
                             viewport={{ once: true }}
                             variants={staggerContainer}
-                            className="grid md:grid-cols-3 gap-8"
+                            className="grid md:grid-cols-3 gap-6 md:gap-8"
                         >
                             {/* Step 1: Upload PDF */}
                             <motion.div
                                 variants={fadeInUp}
                                 className="relative"
                             >
-                                <div className="text-9xl font-bold text-white/5 absolute -top-8 left-4">01</div>
+                                <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-white/5 absolute -top-4 sm:-top-6 md:-top-8 left-2 sm:left-4">01</div>
                                 <div className="relative z-10 p-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl hover:border-cyan-500/30 transition-all group">
                                     {/* Upload Animation */}
                                     <div className="h-48 flex items-center justify-center mb-6 relative">
@@ -627,7 +628,7 @@ export default function Landing() {
                                 variants={fadeInUp}
                                 className="relative"
                             >
-                                <div className="text-9xl font-bold text-white/5 absolute -top-8 left-4">02</div>
+                                <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-white/5 absolute -top-4 sm:-top-6 md:-top-8 left-2 sm:left-4">02</div>
                                 <div className="relative z-10 p-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl hover:border-purple-500/30 transition-all">
                                     {/* Question Animation */}
                                     <div className="h-48 flex items-center justify-center mb-6 relative">
@@ -697,7 +698,7 @@ export default function Landing() {
                                 variants={fadeInUp}
                                 className="relative"
                             >
-                                <div className="text-9xl font-bold text-white/5 absolute -top-8 left-4">03</div>
+                                <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-white/5 absolute -top-4 sm:-top-6 md:-top-8 left-2 sm:left-4">03</div>
                                 <div className="relative z-10 p-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl hover:border-pink-500/30 transition-all">
                                     {/* Response Animation */}
                                     <div className="h-48 flex items-center justify-center mb-6 relative">
@@ -879,7 +880,7 @@ export default function Landing() {
                 </section> */}
 
                 {/* Pricing Section */}
-                <section id="pricing" className="py-20 px-6">
+                <section id="pricing" className="py-12 md:py-20 px-4 md:px-6">
                     <div className="max-w-7xl mx-auto">
                         <motion.div
                             initial="hidden"
@@ -907,7 +908,7 @@ export default function Landing() {
                             whileInView="visible"
                             viewport={{ once: true }}
                             variants={staggerContainer}
-                            className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto"
+                            className="grid md:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto"
                         >
                             {[
                                 {
@@ -1022,7 +1023,7 @@ export default function Landing() {
                 </section>
 
                 {/* CTA Section */}
-                <section className="py-20 px-6 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 backdrop-blur-sm">
+                <section className="py-12 md:py-20 px-4 md:px-6 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 backdrop-blur-sm">
                     <motion.div
                         initial="hidden"
                         whileInView="visible"
@@ -1057,9 +1058,9 @@ export default function Landing() {
                 </section>
 
                 {/* Footer */}
-                <footer className="bg-black/40 backdrop-blur-sm border-t border-white/10 py-12 px-6">
+                <footer className="bg-black/40 backdrop-blur-sm border-t border-white/10 py-8 md:py-12 px-4 md:px-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="grid md:grid-cols-3 gap-8 mb-8">
+                        <div className="grid md:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-8">
                             {/* Brand */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3">
