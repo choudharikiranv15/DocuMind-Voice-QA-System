@@ -242,3 +242,44 @@ class Database:
             import logging
             logging.error(f"Database error getting documents: {e}")
             return []
+
+    # ============= SITE FEEDBACK METHODS =============
+
+    def save_site_feedback(self, feedback_data: Dict[str, Any]) -> bool:
+        """Save general site feedback to database"""
+        try:
+            response = self.client.table('site_feedback').insert(feedback_data).execute()
+            return bool(response.data)
+        except Exception as e:
+            import logging
+            logging.error(f"Database error saving site feedback: {e}")
+            return False
+
+    def get_user_site_feedback(self, user_id: str) -> list:
+        """Get all site feedback submitted by a user"""
+        try:
+            response = self.client.table('site_feedback') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .order('created_at', desc=True) \
+                .execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting user site feedback: {e}")
+            return []
+
+    def get_all_site_feedback(self, limit: int = 100, status: str = None) -> list:
+        """Get all site feedback (admin use)"""
+        try:
+            query = self.client.table('site_feedback').select('*')
+
+            if status:
+                query = query.eq('status', status)
+
+            response = query.order('created_at', desc=True).limit(limit).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting all site feedback: {e}")
+            return []

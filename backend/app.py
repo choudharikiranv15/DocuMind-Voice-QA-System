@@ -683,6 +683,106 @@ def get_user_stats():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+# ============= SITE FEEDBACK ENDPOINT =============
+
+@app.route('/site-feedback', methods=['POST'])
+@require_auth
+@limiter.limit("5 per hour")  # Limit to 5 feedback submissions per hour
+def submit_site_feedback():
+    """Submit general site feedback"""
+    try:
+        data = request.json
+        user_id = request.user_id
+
+        # Required fields
+        overall_rating = data.get('overall_rating')
+        feedback_type = data.get('feedback_type')
+        feedback_message = data.get('feedback_message', '').strip()
+
+        # Validation
+        if not overall_rating or not feedback_type or not feedback_message:
+            return jsonify({
+                'success': False,
+                'message': 'Overall rating, feedback type, and message are required'
+            }), 400
+
+        if overall_rating not in [1, 2, 3, 4, 5]:
+            return jsonify({'success': False, 'message': 'Rating must be between 1 and 5'}), 400
+
+        valid_types = ['bug', 'feature_request', 'improvement', 'praise', 'other']
+        if feedback_type not in valid_types:
+            return jsonify({'success': False, 'message': f'Invalid feedback type'}), 400
+
+        # Optional fields
+        feedback_data = {
+            'user_id': user_id,
+            'overall_rating': overall_rating,
+            'ease_of_use_rating': data.get('ease_of_use_rating'),
+            'features_rating': data.get('features_rating'),
+            'performance_rating': data.get('performance_rating'),
+            'feedback_type': feedback_type,
+            'feedback_title': data.get('feedback_title', '').strip(),
+            'feedback_message': feedback_message,
+            'likes': data.get('likes', '').strip(),
+            'improvements': data.get('improvements', '').strip(),
+            'would_recommend': data.get('would_recommend'),
+            'nps_score': data.get('nps_score'),
+            'can_contact': data.get('can_contact', False),
+            'contact_email': data.get('contact_email', '').strip(),
+            'user_agent': request.headers.get('User-Agent'),
+            'page_url': data.get('page_url', ''),
+            'browser_info': data.get('browser_info'),
+            'screen_resolution': data.get('screen_resolution')
+        }
+
+        # Save feedback to database
+        success = db.save_site_feedback(feedback_data)
+
+        if success:
+            # Track feedback event
+            analytics.track_event(user_id, 'site_feedback_submitted', {
+                'rating': overall_rating,
+                'type': feedback_type
+            })
+            add_breadcrumb('Site feedback submitted', category='feedback', data={
+                'type': feedback_type,
+                'rating': overall_rating
+            })
+
+            logger.info(f"Site feedback submitted by user {user_id}: {feedback_type} ({overall_rating}/5)")
+            return jsonify({
+                'success': True,
+                'message': 'Thank you for your feedback! We appreciate your input.'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to save feedback'}), 500
+
+    except Exception as e:
+        logger.error(f"Site feedback error: {str(e)}")
+        capture_exception(e, {'endpoint': 'site_feedback'})
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
+
+
+@app.route('/site-feedback', methods=['GET'])
+@require_auth
+def get_user_feedback():
+    """Get user's submitted feedback"""
+    try:
+        user_id = request.user_id
+        feedback_list = db.get_user_site_feedback(user_id)
+
+        return jsonify({
+            'success': True,
+            'feedback': feedback_list,
+            'count': len(feedback_list)
+        })
+
+    except Exception as e:
+        logger.error(f"Get site feedback error: {str(e)}")
+        capture_exception(e, {'endpoint': 'get_site_feedback'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # ============= END AUTHENTICATION ENDPOINTS =============
 
 @app.route('/upload', methods=['POST'])

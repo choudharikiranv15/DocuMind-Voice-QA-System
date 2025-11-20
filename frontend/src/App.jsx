@@ -7,6 +7,7 @@ import ChatContainer from './components/chat/ChatContainer'
 import Sidebar from './components/layout/Sidebar'
 import BrowserWarning from './components/common/BrowserWarning'
 import OnboardingTutorial from './components/common/OnboardingTutorial'
+import FeedbackButton from './components/feedback/FeedbackButton'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -77,6 +78,9 @@ function MainApp() {
                     <ChatContainer />
                 </div>
             </div>
+
+            {/* Floating Feedback Button - Available everywhere in the app */}
+            <FeedbackButton />
         </Layout>
     )
 }
