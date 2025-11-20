@@ -14,7 +14,12 @@ bind = f"0.0.0.0:{port}"
 backlog = 2048
 
 # Log the binding address for debugging
-print(f"[Gunicorn Config] Binding to {bind}")
+import sys
+print(f"\n{'='*70}", file=sys.stderr)
+print(f"[Gunicorn Config] Binding to {bind}", file=sys.stderr)
+print(f"[Gunicorn Config] PORT environment variable: {os.getenv('PORT', 'NOT SET')}", file=sys.stderr)
+print(f"{'='*70}\n", file=sys.stderr)
+sys.stderr.flush()
 
 # Worker processes
 # Render Free Tier: 0.5 GB RAM - use fewer workers to avoid OOM
@@ -78,12 +83,19 @@ def on_reload(server):
 
 def when_ready(server):
     """Called just after the server is started."""
+    import sys
     server.log.info("=" * 60)
-    server.log.info("✓ Gunicorn server READY")
+    server.log.info("✓✓✓ Gunicorn server READY ✓✓✓")
     server.log.info(f"✓ Listening on: {bind}")
+    server.log.info(f"✓ PORT env var: {os.getenv('PORT', 'NOT SET')}")
     server.log.info(f"✓ Workers: {workers}, Threads per worker: {threads}")
     server.log.info(f"✓ Max concurrent requests: {workers * threads}")
     server.log.info("=" * 60)
+    # Also print to stderr to ensure Render sees it
+    print(f"\n{'='*60}", file=sys.stderr)
+    print(f"✓✓✓ SERVER IS LISTENING ON {bind} ✓✓✓", file=sys.stderr)
+    print(f"{'='*60}\n", file=sys.stderr)
+    sys.stderr.flush()
 
 def worker_int(worker):
     """Called when a worker receives the INT or QUIT signal."""

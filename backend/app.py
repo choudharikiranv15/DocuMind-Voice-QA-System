@@ -28,6 +28,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create Flask app FIRST (allows gunicorn to bind to port even if env validation fails)
+app = Flask(__name__)
+
 # ============= ENVIRONMENT VALIDATION =============
 def validate_environment():
     """Validate required environment variables are set"""
@@ -60,28 +63,32 @@ def validate_environment():
             missing_optional.append(f"  [OPTIONAL] {var}: {description}")
 
     if missing_required:
-        print("\n" + "="*70)
-        print("CRITICAL: Missing Required Environment Variables")
-        print("="*70)
+        logger.error("\n" + "="*70)
+        logger.error("CRITICAL: Missing Required Environment Variables")
+        logger.error("="*70)
         for msg in missing_required:
-            print(msg)
-        print("\nPlease set these variables in your .env file")
-        print("="*70 + "\n")
-        raise RuntimeError("Missing required environment variables. Cannot start.")
+            logger.error(msg)
+        logger.error("\nPlease set these variables in your Render dashboard")
+        logger.error("="*70 + "\n")
+        # Don't raise - let the app start so Render can detect the port
+        # The app will fail gracefully when endpoints are accessed
+        return False
 
     if missing_optional:
-        print("\n" + "="*70)
-        print("WARNING: Missing Optional Environment Variables")
-        print("="*70)
+        logger.warning("\n" + "="*70)
+        logger.warning("WARNING: Missing Optional Environment Variables")
+        logger.warning("="*70)
         for msg in missing_optional:
-            print(msg)
-        print("\nApplication will run with reduced functionality.")
-        print("="*70 + "\n")
+            logger.warning(msg)
+        logger.warning("\nApplication will run with reduced functionality.")
+        logger.warning("="*70 + "\n")
 
-# Validate environment before starting
-validate_environment()
+    return True
 
-app = Flask(__name__)
+# Validate environment after app creation (non-fatal)
+env_valid = validate_environment()
+if not env_valid:
+    logger.error("⚠️ App started with missing required environment variables. Configure them in Render dashboard.")
 
 # Initialize Sentry for error tracking
 init_sentry(app)
