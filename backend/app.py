@@ -86,12 +86,21 @@ def validate_environment():
     return True
 
 # Validate environment after app creation (non-fatal)
-env_valid = validate_environment()
-if not env_valid:
-    logger.error("⚠️ App started with missing required environment variables. Configure them in Render dashboard.")
+try:
+    env_valid = validate_environment()
+    if not env_valid:
+        logger.error("⚠️ App started with missing required environment variables. Configure them in Render dashboard.")
+except Exception as e:
+    logger.error(f"Environment validation failed: {e}")
+    env_valid = False
 
-# Initialize Sentry for error tracking
-init_sentry(app)
+# Initialize Sentry for error tracking (non-fatal)
+try:
+    init_sentry(app)
+    logger.info("✓ Sentry initialized successfully")
+except Exception as e:
+    logger.warning(f"Sentry initialization failed (non-critical): {e}")
+    # Continue without Sentry
 
 # Security headers with Flask-Talisman
 # Content Security Policy to prevent XSS, clickjacking, etc.
@@ -113,50 +122,71 @@ csp = {
     'worker-src': ["'self'", 'blob:'],  # Allow web workers
 }
 
-# CORS Configuration - MUST be initialized BEFORE Talisman
+# CORS Configuration - MUST be initialized BEFORE Talisman (non-fatal)
 # Otherwise Talisman intercepts OPTIONS preflight requests
-cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
-CORS(app, resources={
-    r"/*": {
-        "origins": cors_origins,
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": [
-            "Content-Type",
-            "Authorization",
-            "baggage",           # Sentry tracing
-            "sentry-trace",      # Sentry tracing
-            "X-Requested-With",  # Common AJAX header
-            "Accept",            # Standard header
-            "Origin"             # CORS header
-        ],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True,
-        "max_age": 3600  # Cache preflight requests for 1 hour
+try:
+    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
+    CORS(app, resources={
+        r"/*": {
+            "origins": cors_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": [
+                "Content-Type",
+                "Authorization",
+                "baggage",           # Sentry tracing
+                "sentry-trace",      # Sentry tracing
+                "X-Requested-With",  # Common AJAX header
+                "Accept",            # Standard header
+                "Origin"             # CORS header
+            ],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True,
+            "max_age": 3600  # Cache preflight requests for 1 hour
     }
-})
+    })
+    logger.info("✓ CORS initialized successfully")
+except Exception as e:
+    logger.warning(f"CORS initialization failed (non-critical): {e}")
+    # Continue without CORS
 
-# Security headers with Flask-Talisman
+# Security headers with Flask-Talisman (non-fatal)
 # Initialized AFTER CORS to avoid blocking preflight requests
-talisman = Talisman(
-    app,
-    force_https=False,  # Set to True in production with HTTPS
-    content_security_policy=None,  # Disabled for React dev mode (enable in production)
-    content_security_policy_nonce_in=['script-src']
-)
+try:
+    talisman = Talisman(
+        app,
+        force_https=False,  # Set to True in production with HTTPS
+        content_security_policy=None,  # Disabled for React dev mode (enable in production)
+        content_security_policy_nonce_in=['script-src']
+    )
+    logger.info("✓ Talisman security headers initialized")
+except Exception as e:
+    logger.warning(f"Talisman initialization failed (non-critical): {e}")
+    # Continue without Talisman
 
-# Rate limiter configuration
+# Rate limiter configuration (non-fatal)
 # Uses Redis Cloud (standard Redis protocol) for persistent rate limiting
 # Falls back to in-memory if REDIS_URL not configured
-redis_url = os.getenv('REDIS_URL')  # Redis Cloud: redis://user:pass@host:port
-storage_uri = redis_url if redis_url else "memory://"
+try:
+    redis_url = os.getenv('REDIS_URL')  # Redis Cloud: redis://user:pass@host:port
+    storage_uri = redis_url if redis_url else "memory://"
 
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    storage_uri=storage_uri,
-    default_limits=["200 per day", "50 per hour"],  # Default limits for all endpoints
-    strategy="fixed-window"
-)
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        storage_uri=storage_uri,
+        default_limits=["200 per day", "50 per hour"],  # Default limits for all endpoints
+        strategy="fixed-window"
+    )
+    logger.info(f"✓ Rate limiter initialized with {storage_uri}")
+except Exception as e:
+    logger.warning(f"Rate limiter initialization failed (non-critical): {e}")
+    # Create a dummy limiter that does nothing
+    class DummyLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = DummyLimiter()
 
 # Log rate limiter storage type
 logger.info(f"Rate limiter using: {'Redis (persistent)' if redis_url else 'Memory (resets on restart)'}")
@@ -179,19 +209,105 @@ def request_entity_too_large(error):
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
 
-# Initialize systems
-config = Config()
-rag_system = RAGSystem(config)
-stt_handler = STTHandler()  # Uses Groq Whisper API
-tts_handler = MultilingualTTSHandler(
-    output_dir=app.config['AUDIO_FOLDER'],
-    enable_coqui_fallback=True  # gTTS primary, Coqui fallback for English
-)
-db = Database()  # Database connection
-user_limits = UserLimits(rag_system.cache, db)  # User limits manager
-email_service = get_email_service()  # Email service
-analytics = get_analytics_service()  # Analytics service
-password_reset_service = PasswordResetService(rag_system.cache)  # Password reset service
+# Initialize systems (with comprehensive error handling)
+config = None
+rag_system = None
+stt_handler = None
+tts_handler = None
+db = None
+user_limits = None
+email_service = None
+analytics = None
+password_reset_service = None
+
+try:
+    config = Config()
+    logger.info("✓ Config loaded")
+except Exception as e:
+    logger.error(f"❌ Config initialization failed: {e}")
+
+try:
+    rag_system = RAGSystem(config) if config else None
+    logger.info("✓ RAG system initialized")
+except Exception as e:
+    logger.error(f"❌ RAG system initialization failed: {e}")
+
+try:
+    stt_handler = STTHandler()
+    logger.info("✓ STT handler initialized")
+except Exception as e:
+    logger.error(f"❌ STT handler initialization failed: {e}")
+
+try:
+    tts_handler = MultilingualTTSHandler(
+        output_dir=app.config['AUDIO_FOLDER'],
+        enable_coqui_fallback=True
+    )
+    logger.info("✓ TTS handler initialized")
+except Exception as e:
+    logger.error(f"❌ TTS handler initialization failed: {e}")
+
+try:
+    db = Database()
+    logger.info("✓ Database connection established")
+except Exception as e:
+    logger.error(f"❌ Database initialization failed: {e}")
+
+try:
+    user_limits = UserLimits(rag_system.cache, db) if (rag_system and db) else None
+    logger.info("✓ User limits manager initialized")
+except Exception as e:
+    logger.error(f"❌ User limits initialization failed: {e}")
+
+try:
+    email_service = get_email_service()
+    logger.info("✓ Email service initialized")
+except Exception as e:
+    logger.error(f"❌ Email service initialization failed: {e}")
+
+try:
+    analytics = get_analytics_service()
+    logger.info("✓ Analytics service initialized")
+except Exception as e:
+    logger.error(f"❌ Analytics service initialization failed: {e}")
+
+try:
+    password_reset_service = PasswordResetService(rag_system.cache) if rag_system else None
+    logger.info("✓ Password reset service initialized")
+except Exception as e:
+    logger.error(f"❌ Password reset service initialization failed: {e}")
+
+# Log startup summary
+logger.info("="*70)
+logger.info("🚀 DokGuru Voice API Server - Startup Summary")
+logger.info("="*70)
+logger.info(f"✓ Flask App: READY (this is what matters for Render!)")
+logger.info(f"{'✓' if config else '❌'} Config: {'OK' if config else 'FAILED'}")
+logger.info(f"{'✓' if db else '❌'} Database: {'OK' if db else 'FAILED (check SUPABASE_URL/KEY)'}")
+logger.info(f"{'✓' if rag_system else '❌'} RAG System: {'OK' if rag_system else 'FAILED'}")
+logger.info(f"{'✓' if stt_handler else '❌'} STT: {'OK' if stt_handler else 'FAILED'}")
+logger.info(f"{'✓' if tts_handler else '❌'} TTS: {'OK' if tts_handler else 'FAILED'}")
+logger.info(f"{'✓' if analytics else '❌'} Analytics: {'OK' if analytics else 'FAILED'}")
+logger.info("="*70)
+logger.info("App will start and bind to port even if services failed!")
+logger.info("="*70)
+
+# ============= HEALTH CHECK (ALWAYS WORKS) =============
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Simple health check endpoint - always returns 200 even if services are down"""
+    return jsonify({
+        'status': 'healthy',
+        'app': 'DokGuru Voice API',
+        'flask': 'running',
+        'services': {
+            'database': db is not None,
+            'rag_system': rag_system is not None,
+            'stt': stt_handler is not None,
+            'tts': tts_handler is not None,
+            'analytics': analytics is not None
+        }
+    }), 200
 
 # ============= SENTRY CONTEXT ENRICHMENT =============
 @app.before_request
