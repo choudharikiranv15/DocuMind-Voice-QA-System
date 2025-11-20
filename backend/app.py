@@ -13,7 +13,7 @@ from src.stt_handler import STTHandler
 from src.multilingual_tts_handler import MultilingualTTSHandler  # Multilingual TTS (gTTS + Coqui)
 from src.database import Database
 from src.auth.jwt_handler import generate_jwt, verify_jwt
-from src.auth.decorators import require_auth
+from src.auth.decorators import require_auth, require_admin
 from src.limits import UserLimits
 from src.error_tracking import init_sentry, capture_exception, add_breadcrumb, set_user_context
 from sentry_sdk import set_context, set_user
@@ -1698,6 +1698,105 @@ def health_check():
             'status': 'unhealthy',
             'message': str(e)
         }), 500
+
+
+# ============= ADMIN ENDPOINTS =============
+
+@app.route('/admin/dashboard', methods=['GET'])
+@require_admin
+def admin_dashboard():
+    """Get admin dashboard statistics"""
+    try:
+        system_stats = db.get_system_analytics() if db else {}
+        feedback_stats = db.get_feedback_analytics() if db else {}
+
+        return jsonify({
+            'success': True,
+            'system': system_stats,
+            'feedback': feedback_stats
+        })
+    except Exception as e:
+        logger.error(f"Admin dashboard error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/users', methods=['GET'])
+@require_admin
+def admin_get_users():
+    """Get all users (admin only)"""
+    try:
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+
+        users = db.get_all_users(limit=limit, offset=offset) if db else []
+
+        return jsonify({
+            'success': True,
+            'users': users,
+            'count': len(users)
+        })
+    except Exception as e:
+        logger.error(f"Admin get users error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/users/<user_id>', methods=['GET'])
+@require_admin
+def admin_get_user_details(user_id):
+    """Get detailed user statistics (admin only)"""
+    try:
+        stats = db.get_user_stats_admin(user_id) if db else {}
+
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+    except Exception as e:
+        logger.error(f"Admin get user details error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/feedback', methods=['GET'])
+@require_admin
+def admin_get_feedback():
+    """Get all feedback (admin only)"""
+    try:
+        limit = int(request.args.get('limit', 100))
+        status = request.args.get('status')
+
+        feedback = db.get_all_site_feedback(limit=limit, status=status) if db else []
+
+        return jsonify({
+            'success': True,
+            'feedback': feedback,
+            'count': len(feedback)
+        })
+    except Exception as e:
+        logger.error(f"Admin get feedback error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/admin/analytics', methods=['GET'])
+@require_admin
+def admin_analytics():
+    """Get comprehensive analytics (admin only)"""
+    try:
+        system_stats = db.get_system_analytics() if db else {}
+        feedback_stats = db.get_feedback_analytics() if db else {}
+
+        return jsonify({
+            'success': True,
+            'analytics': {
+                'system': system_stats,
+                'feedback': feedback_stats
+            }
+        })
+    except Exception as e:
+        logger.error(f"Admin analytics error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============= END ADMIN ENDPOINTS =============
 
 if __name__ == '__main__':
     print("=" * 70)

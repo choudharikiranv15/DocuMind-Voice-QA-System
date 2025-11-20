@@ -283,3 +283,137 @@ class Database:
             import logging
             logging.error(f"Database error getting all site feedback: {e}")
             return []
+
+    # ============= ADMIN ANALYTICS METHODS =============
+
+    def get_all_users(self, limit: int = 1000, offset: int = 0) -> list:
+        """Get all users (admin only)"""
+        try:
+            response = self.client.table('users') \
+                .select('id, email, role, institution, occupation, is_admin, created_at, last_login') \
+                .order('created_at', desc=True) \
+                .range(offset, offset + limit - 1) \
+                .execute()
+            return response.data if response.data else []
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting all users: {e}")
+            return []
+
+    def get_user_stats_admin(self, user_id: str) -> dict:
+        """Get detailed user statistics (admin only)"""
+        try:
+            # Get user info
+            user_response = self.client.table('users').select('*').eq('id', user_id).execute()
+            if not user_response.data:
+                return {}
+
+            user = user_response.data[0]
+
+            # Get document count
+            doc_response = self.client.table('documents').select('id').eq('user_id', user_id).execute()
+            document_count = len(doc_response.data) if doc_response.data else 0
+
+            # Get feedback count
+            feedback_response = self.client.table('feedback').select('id').eq('user_id', user_id).execute()
+            feedback_count = len(feedback_response.data) if feedback_response.data else 0
+
+            # Get site feedback
+            site_feedback_response = self.client.table('site_feedback').select('*').eq('user_id', user_id).execute()
+            site_feedback = site_feedback_response.data if site_feedback_response.data else []
+
+            return {
+                'user': user,
+                'document_count': document_count,
+                'feedback_count': feedback_count,
+                'site_feedback': site_feedback
+            }
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting user stats (admin): {e}")
+            return {}
+
+    def get_system_analytics(self) -> dict:
+        """Get overall system analytics (admin only)"""
+        try:
+            # Total users
+            users_response = self.client.table('users').select('id', count='exact').execute()
+            total_users = users_response.count if users_response.count else 0
+
+            # Total documents
+            docs_response = self.client.table('documents').select('id', count='exact').execute()
+            total_documents = docs_response.count if docs_response.count else 0
+
+            # Total feedback
+            feedback_response = self.client.table('site_feedback').select('id, overall_rating', count='exact').execute()
+            total_feedback = feedback_response.count if feedback_response.count else 0
+
+            # Average rating
+            avg_rating = 0
+            if feedback_response.data:
+                ratings = [f['overall_rating'] for f in feedback_response.data if f.get('overall_rating')]
+                avg_rating = sum(ratings) / len(ratings) if ratings else 0
+
+            # Recent users (last 7 days)
+            from datetime import datetime, timedelta
+            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            recent_users_response = self.client.table('users') \
+                .select('id', count='exact') \
+                .gte('created_at', week_ago) \
+                .execute()
+            recent_users = recent_users_response.count if recent_users_response.count else 0
+
+            return {
+                'total_users': total_users,
+                'total_documents': total_documents,
+                'total_feedback': total_feedback,
+                'average_rating': round(avg_rating, 2),
+                'recent_users_week': recent_users
+            }
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting system analytics: {e}")
+            return {}
+
+    def get_feedback_analytics(self) -> dict:
+        """Get feedback analytics (admin only)"""
+        try:
+            response = self.client.table('site_feedback').select('*').execute()
+            feedbacks = response.data if response.data else []
+
+            # Group by type
+            by_type = {}
+            by_rating = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+            total_nps = []
+
+            for feedback in feedbacks:
+                # By type
+                ftype = feedback.get('feedback_type', 'other')
+                by_type[ftype] = by_type.get(ftype, 0) + 1
+
+                # By rating
+                rating = feedback.get('overall_rating')
+                if rating in by_rating:
+                    by_rating[rating] += 1
+
+                # NPS
+                if feedback.get('nps_score') is not None:
+                    total_nps.append(feedback['nps_score'])
+
+            # Calculate NPS
+            nps_score = 0
+            if total_nps:
+                promoters = len([s for s in total_nps if s >= 9])
+                detractors = len([s for s in total_nps if s <= 6])
+                nps_score = ((promoters - detractors) / len(total_nps)) * 100
+
+            return {
+                'by_type': by_type,
+                'by_rating': by_rating,
+                'nps_score': round(nps_score, 1),
+                'total_responses': len(feedbacks)
+            }
+        except Exception as e:
+            import logging
+            logging.error(f"Database error getting feedback analytics: {e}")
+            return {}
