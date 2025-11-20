@@ -7,7 +7,7 @@ services:
     branch: main
     rootDir: backend
     buildCommand: pip install -r requirements-production.txt
-    startCommand: gunicorn app:app -c gunicorn.conf.py
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app -c gunicorn.conf.py
     envVars:
       - key: FLASK_ENV
         value: production

@@ -23,12 +23,13 @@ sys.stderr.flush()
 
 # Worker processes
 # Render Free Tier: 0.5 GB RAM - use fewer workers to avoid OOM
-# For I/O-bound apps like this (waiting for LLM/DB), 2 workers is optimal for free tier
-workers = int(os.getenv('GUNICORN_WORKERS', '2'))  # Configurable via env var
+# For I/O-bound apps like this (waiting for LLM/DB), use 1 worker initially for faster startup
+# Can be increased via GUNICORN_WORKERS env var after successful deployment
+workers = int(os.getenv('GUNICORN_WORKERS', '1'))  # Start with 1 worker for reliable deployment
 worker_class = 'sync'
 worker_connections = 1000
-threads = 2  # Allows 4 concurrent requests (2 workers × 2 threads)
-timeout = 120  # 2 minutes for long PDF processing and LLM responses
+threads = 4  # Allows 4 concurrent requests (1 worker × 4 threads)
+timeout = 300  # 5 minutes for ML model loading, PDF processing and LLM responses
 keepalive = 5
 
 # Restart workers after N requests (prevent memory leaks)
@@ -65,7 +66,9 @@ raw_env = [
 ]
 
 # Preload app for better memory efficiency
-preload_app = True
+# NOTE: Set to False for Render to ensure port binding happens BEFORE app initialization
+# This prevents timeout issues when app has heavy dependencies (ML models, etc.)
+preload_app = False
 
 # Worker lifecycle hooks
 def on_starting(server):

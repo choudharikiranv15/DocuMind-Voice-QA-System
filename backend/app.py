@@ -288,6 +288,7 @@ except Exception as e:
     logger.error(f"❌ Password reset service initialization failed: {e}")
 
 # Log startup summary
+import sys
 logger.info("="*70)
 logger.info("🚀 DokGuru Voice API Server - Startup Summary")
 logger.info("="*70)
@@ -299,8 +300,14 @@ logger.info(f"{'✓' if stt_handler else '❌'} STT: {'OK' if stt_handler else '
 logger.info(f"{'✓' if tts_handler else '❌'} TTS: {'OK' if tts_handler else 'FAILED'}")
 logger.info(f"{'✓' if analytics else '❌'} Analytics: {'OK' if analytics else 'FAILED'}")
 logger.info("="*70)
-logger.info("App will start and bind to port even if services failed!")
+logger.info("✓✓✓ APP MODULE LOADED - Gunicorn can now bind to port! ✓✓✓")
 logger.info("="*70)
+# Also print to stderr for visibility in Render logs
+print("="*70, file=sys.stderr)
+print("✓✓✓ Flask app module loaded successfully - ready for Gunicorn ✓✓✓", file=sys.stderr)
+print(f"✓ PORT will be: {os.getenv('PORT', '10000')}", file=sys.stderr)
+print("="*70, file=sys.stderr)
+sys.stderr.flush()
 
 # ============= SENTRY CONTEXT ENRICHMENT =============
 @app.before_request
