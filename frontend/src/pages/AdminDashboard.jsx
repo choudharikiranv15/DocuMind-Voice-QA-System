@@ -38,7 +38,7 @@ export default function AdminDashboard() {
 
     const fetchDashboardData = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/dashboard`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/dashboard`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/users`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
 
     const fetchFeedback = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/feedback`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/feedback`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -89,7 +89,7 @@ export default function AdminDashboard() {
 
     const fetchAIFeedback = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/ai-feedback`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/ai-feedback`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
