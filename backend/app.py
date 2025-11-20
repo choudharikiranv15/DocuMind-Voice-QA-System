@@ -1706,7 +1706,7 @@ def health_check():
 
 # ============= ADMIN ENDPOINTS =============
 
-@app.route('/admin/dashboard', methods=['GET'])
+@app.route('/admin/dashboard', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_dashboard():
     """Get admin dashboard statistics"""
@@ -1724,7 +1724,7 @@ def admin_dashboard():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/admin/users', methods=['GET'])
+@app.route('/admin/users', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_get_users():
     """Get all users (admin only)"""
@@ -1744,7 +1744,7 @@ def admin_get_users():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/admin/users/<user_id>', methods=['GET'])
+@app.route('/admin/users/<user_id>', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_get_user_details(user_id):
     """Get detailed user statistics (admin only)"""
@@ -1760,7 +1760,7 @@ def admin_get_user_details(user_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/admin/feedback', methods=['GET'])
+@app.route('/admin/feedback', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_get_feedback():
     """Get all feedback (admin only)"""
@@ -1780,7 +1780,7 @@ def admin_get_feedback():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/admin/analytics', methods=['GET'])
+@app.route('/admin/analytics', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_analytics():
     """Get comprehensive analytics (admin only)"""
@@ -1800,7 +1800,7 @@ def admin_analytics():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/admin/ai-feedback', methods=['GET'])
+@app.route('/admin/ai-feedback', methods=['GET', 'OPTIONS'])
 @require_admin
 def admin_get_ai_feedback():
     """Get AI response feedback with analytics (admin only)"""
