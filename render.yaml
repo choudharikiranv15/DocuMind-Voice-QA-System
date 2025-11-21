@@ -16,7 +16,7 @@ services:
         - "*.md"
         - docs/**
         - img/**
-    buildCommand: pip install -r requirements-production.txt
+    buildCommand: bash build.sh
     startCommand: gunicorn --bind 0.0.0.0:$PORT app_minimal:app -c gunicorn.conf.py
     envVars:
       - key: FLASK_ENV
