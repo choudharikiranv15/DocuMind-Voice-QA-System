@@ -159,25 +159,15 @@ class Database:
             return None
 
     def update_voice_preferences(self, user_id: str, engine_preference: str, language_preference: str) -> bool:
-        """Update or insert user's voice preferences"""
+        """Update or insert user's voice preferences using upsert to avoid race conditions"""
         try:
-            # Check if preferences exist
-            existing = self.get_voice_preferences(user_id)
-
-            if existing:
-                # Update existing preferences
-                response = self.client.table('user_voice_preferences').update({
-                    'engine_preference': engine_preference,
-                    'language_preference': language_preference,
-                    'updated_at': 'NOW()'
-                }).eq('user_id', user_id).execute()
-            else:
-                # Insert new preferences
-                response = self.client.table('user_voice_preferences').insert({
-                    'user_id': user_id,
-                    'engine_preference': engine_preference,
-                    'language_preference': language_preference
-                }).execute()
+            # Use upsert to atomically update or insert
+            # This prevents duplicate key violations from race conditions
+            response = self.client.table('user_voice_preferences').upsert({
+                'user_id': user_id,
+                'engine_preference': engine_preference,
+                'language_preference': language_preference
+            }, on_conflict='user_id').execute()
 
             return bool(response.data)
         except Exception as e:

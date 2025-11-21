@@ -340,18 +340,50 @@ def get_email_svc(): return _components.get('email_service')
 def get_analytics_svc(): return _components.get('analytics')
 def get_password_reset(): return _components.get('password_reset')
 
-# Warmup flag to trigger background initialization
+# Eagerly initialize critical components (Database and Analytics)
+# These are lightweight and needed for every auth request
+def init_critical_components():
+    """Initialize critical components eagerly on app startup"""
+    try:
+        logger.info("⚡ Eagerly initializing critical components...")
+
+        # Database is critical for all auth operations
+        db_instance = _components.get('db')
+        if db_instance:
+            logger.info("✓ Database initialized eagerly")
+
+        # Analytics for tracking (non-blocking)
+        analytics_instance = _components.get('analytics')
+        if analytics_instance:
+            logger.info("✓ Analytics initialized eagerly")
+
+        logger.info("⚡ Critical components ready!")
+    except Exception as e:
+        logger.error(f"⚠️  Critical component initialization failed: {e}")
+
+# Initialize critical components immediately
+init_critical_components()
+
+# Warmup flag to trigger background initialization of heavy components
 _warmup_started = False
 _warmup_lock = threading.Lock()
 
 def trigger_warmup():
-    """Trigger background warmup of heavy components (called on first request)"""
+    """Trigger background warmup of heavy ML components (called on first request)"""
     global _warmup_started
     with _warmup_lock:
         if not _warmup_started:
             _warmup_started = True
             logger.info("🔥 Triggering background warmup of ML models...")
-            _components.warmup_all()
+            # Warmup heavy components (TTS, STT, RAG) in background
+            # Database and Analytics are already initialized
+            threading.Thread(target=lambda: [
+                _components.get('tts_handler'),
+                _components.get('stt_handler'),
+                _components.get('rag_system'),
+                _components.get('email_service'),
+                _components.get('user_limits')
+            ], daemon=True).start()
 
 # Log startup summary
 import sys
