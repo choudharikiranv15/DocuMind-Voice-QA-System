@@ -8,5 +8,5 @@
       "main": true
     }
   },
-  "ignoreCommand": "bash ./ignore-build.sh"
+  "ignoreCommand": "if git diff --quiet 'HEAD^' 'HEAD' -- ./frontend; then echo 'No frontend changes'; exit 0; else echo 'Frontend changed'; exit 1; fi"
 }
