@@ -33,6 +33,7 @@ from src.auth.password_reset import PasswordResetService
 import bcrypt
 import secrets
 import logging
+import threading
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -219,93 +220,146 @@ def request_entity_too_large(error):
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
 
-# Initialize systems (with comprehensive error handling)
-config = None
-rag_system = None
-stt_handler = None
-tts_handler = None
-db = None
-user_limits = None
-email_service = None
-analytics = None
-password_reset_service = None
+# ============= LAZY LOADING SYSTEM =============
+# Initialize heavy systems on-demand instead of at import time
+# This allows Gunicorn to bind port IMMEDIATELY without waiting for ML models
 
-try:
-    config = Config()
-    logger.info("✓ Config loaded")
-except Exception as e:
-    logger.error(f"❌ Config initialization failed: {e}")
+from src.lazy_loader import LazyLoader, SystemComponents
 
-try:
-    rag_system = RAGSystem(config) if config else None
-    logger.info("✓ RAG system initialized")
-except Exception as e:
-    logger.error(f"❌ RAG system initialization failed: {e}")
+# Global components container
+_components = SystemComponents()
 
-try:
-    stt_handler = STTHandler()
-    logger.info("✓ STT handler initialized")
-except Exception as e:
-    logger.error(f"❌ STT handler initialization failed: {e}")
+# Register all components with lazy loaders
+_components.register('config', LazyLoader(
+    'Config',
+    lambda: Config()
+))
 
-try:
-    tts_handler = MultilingualTTSHandler(
+_components.register('db', LazyLoader(
+    'Database',
+    lambda: Database()
+))
+
+_components.register('rag_system', LazyLoader(
+    'RAG System',
+    lambda: RAGSystem(_components.get('config')) if _components.get('config') else None
+))
+
+_components.register('stt_handler', LazyLoader(
+    'STT Handler',
+    lambda: STTHandler()
+))
+
+_components.register('tts_handler', LazyLoader(
+    'TTS Handler',
+    lambda: MultilingualTTSHandler(
         output_dir=app.config['AUDIO_FOLDER'],
         enable_coqui_fallback=True
     )
-    logger.info("✓ TTS handler initialized")
-except Exception as e:
-    logger.error(f"❌ TTS handler initialization failed: {e}")
+))
 
-try:
-    db = Database()
-    logger.info("✓ Database connection established")
-except Exception as e:
-    logger.error(f"❌ Database initialization failed: {e}")
+_components.register('user_limits', LazyLoader(
+    'User Limits',
+    lambda: UserLimits(
+        _components.get('rag_system').cache if _components.get('rag_system') else None,
+        _components.get('db')
+    ) if (_components.get('rag_system') and _components.get('db')) else None
+))
 
-try:
-    user_limits = UserLimits(rag_system.cache, db) if (rag_system and db) else None
-    logger.info("✓ User limits manager initialized")
-except Exception as e:
-    logger.error(f"❌ User limits initialization failed: {e}")
+_components.register('email_service', LazyLoader(
+    'Email Service',
+    lambda: get_email_service()
+))
 
-try:
-    email_service = get_email_service()
-    logger.info("✓ Email service initialized")
-except Exception as e:
-    logger.error(f"❌ Email service initialization failed: {e}")
+_components.register('analytics', LazyLoader(
+    'Analytics',
+    lambda: get_analytics_service()
+))
 
-try:
-    analytics = get_analytics_service()
-    logger.info("✓ Analytics service initialized")
-except Exception as e:
-    logger.error(f"❌ Analytics service initialization failed: {e}")
+_components.register('password_reset', LazyLoader(
+    'Password Reset',
+    lambda: PasswordResetService(
+        _components.get('rag_system').cache if _components.get('rag_system') else None
+    ) if _components.get('rag_system') else None
+))
 
-try:
-    password_reset_service = PasswordResetService(rag_system.cache) if rag_system else None
-    logger.info("✓ Password reset service initialized")
-except Exception as e:
-    logger.error(f"❌ Password reset service initialization failed: {e}")
+# Backward compatibility - proxy objects that lazy-load on attribute access
+class _LazyProxy:
+    """Proxy that lazy-loads component on first attribute access"""
+    def __init__(self, component_name):
+        self._component_name = component_name
+        self._cached = None
+
+    def __getattr__(self, name):
+        if self._cached is None:
+            self._cached = _components.get(self._component_name)
+        if self._cached is None:
+            raise RuntimeError(f"{self._component_name} not initialized")
+        return getattr(self._cached, name)
+
+    def __bool__(self):
+        if self._cached is None:
+            self._cached = _components.get(self._component_name)
+        return self._cached is not None
+
+    def __call__(self, *args, **kwargs):
+        if self._cached is None:
+            self._cached = _components.get(self._component_name)
+        if self._cached is None:
+            raise RuntimeError(f"{self._component_name} not initialized")
+        return self._cached(*args, **kwargs)
+
+# Create backward-compatible variable names
+config = _LazyProxy('config')
+db = _LazyProxy('db')
+rag_system = _LazyProxy('rag_system')
+stt_handler = _LazyProxy('stt_handler')
+tts_handler = _LazyProxy('tts_handler')
+user_limits = _LazyProxy('user_limits')
+email_service = _LazyProxy('email_service')
+analytics = _LazyProxy('analytics')
+password_reset_service = _LazyProxy('password_reset')
+
+# Getter functions for explicit access
+def get_config(): return _components.get('config')
+def get_db(): return _components.get('db')
+def get_rag_system(): return _components.get('rag_system')
+def get_stt_handler(): return _components.get('stt_handler')
+def get_tts_handler(): return _components.get('tts_handler')
+def get_user_limits(): return _components.get('user_limits')
+def get_email_svc(): return _components.get('email_service')
+def get_analytics_svc(): return _components.get('analytics')
+def get_password_reset(): return _components.get('password_reset')
+
+# Warmup flag to trigger background initialization
+_warmup_started = False
+_warmup_lock = threading.Lock()
+
+def trigger_warmup():
+    """Trigger background warmup of heavy components (called on first request)"""
+    global _warmup_started
+    with _warmup_lock:
+        if not _warmup_started:
+            _warmup_started = True
+            logger.info("🔥 Triggering background warmup of ML models...")
+            _components.warmup_all()
 
 # Log startup summary
 import sys
 logger.info("="*70)
-logger.info("🚀 DokGuru Voice API Server - Startup Summary")
+logger.info("🚀 DokGuru Voice API Server - FAST STARTUP MODE")
 logger.info("="*70)
-logger.info(f"✓ Flask App: READY (this is what matters for Render!)")
-logger.info(f"{'✓' if config else '❌'} Config: {'OK' if config else 'FAILED'}")
-logger.info(f"{'✓' if db else '❌'} Database: {'OK' if db else 'FAILED (check SUPABASE_URL/KEY)'}")
-logger.info(f"{'✓' if rag_system else '❌'} RAG System: {'OK' if rag_system else 'FAILED'}")
-logger.info(f"{'✓' if stt_handler else '❌'} STT: {'OK' if stt_handler else 'FAILED'}")
-logger.info(f"{'✓' if tts_handler else '❌'} TTS: {'OK' if tts_handler else 'FAILED'}")
-logger.info(f"{'✓' if analytics else '❌'} Analytics: {'OK' if analytics else 'FAILED'}")
+logger.info("✓ Flask App: READY (immediate port binding!)")
+logger.info("✓ Heavy components: DEFERRED (will load on first use)")
+logger.info("✓ This allows Render to detect port immediately")
 logger.info("="*70)
 logger.info("✓✓✓ APP MODULE LOADED - Gunicorn can now bind to port! ✓✓✓")
 logger.info("="*70)
 # Also print to stderr for visibility in Render logs
 print("="*70, file=sys.stderr)
-print("✓✓✓ Flask app module loaded successfully - ready for Gunicorn ✓✓✓", file=sys.stderr)
+print("✓✓✓ FAST STARTUP: Flask ready, port can bind immediately! ✓✓✓", file=sys.stderr)
 print(f"✓ PORT will be: {os.getenv('PORT', '10000')}", file=sys.stderr)
+print("✓ Heavy ML models will load in background after port binding", file=sys.stderr)
 print("="*70, file=sys.stderr)
 sys.stderr.flush()
 
@@ -1689,26 +1743,40 @@ def get_cache_stats():
 @app.route('/health', methods=['GET'])
 @limiter.exempt  # Exempt from rate limiting for monitoring/load balancers
 def health_check():
-    """Health check endpoint with Redis status"""
-    try:
-        cache_health = rag_system.cache.health_check()
+    """
+    Lightweight health check endpoint that responds IMMEDIATELY
+    Triggers background warmup on first call for Render deployment
+    """
+    # Trigger background warmup on first health check (typically from Render)
+    trigger_warmup()
 
-        return jsonify({
-            'success': True,
-            'status': 'healthy',
-            'components': {
-                'rag_system': 'healthy',
-                'vector_store': 'healthy',
-                'cache': cache_health
+    # Return immediate response without waiting for heavy components
+    # This allows Render to detect the port is open
+    component_status = _components.get_status()
+
+    # Consider healthy if Flask app is running (even if components not loaded yet)
+    all_initialized = all(status['initialized'] for status in component_status.values())
+    any_errors = any(status['has_error'] for status in component_status.values())
+
+    return jsonify({
+        'success': True,
+        'status': 'healthy',  # Always healthy if Flask is responding
+        'app': 'ready',
+        'port': 'listening',
+        'components': {
+            name: {
+                'status': 'ready' if status['initialized'] and not status['has_error']
+                         else 'error' if status['has_error']
+                         else 'loading',
+                'error': status['error'] if status['has_error'] else None
             }
-        })
-    except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'status': 'unhealthy',
-            'message': str(e)
-        }), 500
+            for name, status in component_status.items()
+        },
+        'initialization': {
+            'all_ready': all_initialized and not any_errors,
+            'in_progress': not all_initialized
+        }
+    }), 200  # Always return 200 if Flask is running
 
 
 # ============= ADMIN ENDPOINTS =============
