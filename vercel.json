@@ -8,5 +8,5 @@
       "main": true
     }
   },
-  "ignoreCommand": "bash ignore-build.sh"
+  "ignoreCommand": "bash ./ignore-build.sh"
 }
