@@ -17,19 +17,16 @@ except ImportError:
     import mimetypes
     print("WARNING: python-magic not available (libmagic missing). Using fallback MIME detection.")
 
-from config.config import Config
-from src.rag_system import RAGSystem
-from src.stt_handler import STTHandler
-from src.multilingual_tts_handler import MultilingualTTSHandler  # Multilingual TTS (gTTS + Coqui)
-from src.database import Database
+# ============= DEFERRED IMPORTS =============
+# Import only lightweight modules immediately
+# Heavy modules (ML, RAG, TTS, STT) imported inside functions to avoid slow startup
 from src.auth.jwt_handler import generate_jwt, verify_jwt
 from src.auth.decorators import require_auth, require_admin
-from src.limits import UserLimits
 from src.error_tracking import init_sentry, capture_exception, add_breadcrumb, set_user_context
 from sentry_sdk import set_context, set_user
-from src.email_service import get_email_service
-from src.analytics import get_analytics_service
-from src.auth.password_reset import PasswordResetService
+
+# Heavy imports will be done lazily inside initialization functions
+# This prevents slow module loading from blocking port binding
 import bcrypt
 import secrets
 import logging
@@ -230,57 +227,69 @@ from src.lazy_loader import LazyLoader, SystemComponents
 _components = SystemComponents()
 
 # Register all components with lazy loaders
+# Import heavy modules INSIDE the lambdas to defer import time
 _components.register('config', LazyLoader(
     'Config',
-    lambda: Config()
+    lambda: __import__('config.config', fromlist=['Config']).Config()
 ))
 
 _components.register('db', LazyLoader(
     'Database',
-    lambda: Database()
+    lambda: __import__('src.database', fromlist=['Database']).Database()
 ))
 
 _components.register('rag_system', LazyLoader(
     'RAG System',
-    lambda: RAGSystem(_components.get('config')) if _components.get('config') else None
+    lambda: (
+        lambda RAGSystem, config: RAGSystem(config) if config else None
+    )(
+        __import__('src.rag_system', fromlist=['RAGSystem']).RAGSystem,
+        _components.get('config')
+    )
 ))
 
 _components.register('stt_handler', LazyLoader(
     'STT Handler',
-    lambda: STTHandler()
+    lambda: __import__('src.stt_handler', fromlist=['STTHandler']).STTHandler()
 ))
 
 _components.register('tts_handler', LazyLoader(
     'TTS Handler',
-    lambda: MultilingualTTSHandler(
-        output_dir=app.config['AUDIO_FOLDER'],
-        enable_coqui_fallback=True
-    )
+    lambda: (
+        lambda MTH: MTH(
+            output_dir=app.config['AUDIO_FOLDER'],
+            enable_coqui_fallback=True
+        )
+    )(__import__('src.multilingual_tts_handler', fromlist=['MultilingualTTSHandler']).MultilingualTTSHandler)
 ))
 
 _components.register('user_limits', LazyLoader(
     'User Limits',
-    lambda: UserLimits(
-        _components.get('rag_system').cache if _components.get('rag_system') else None,
-        _components.get('db')
-    ) if (_components.get('rag_system') and _components.get('db')) else None
+    lambda: (
+        lambda UserLimits: UserLimits(
+            _components.get('rag_system').cache if _components.get('rag_system') else None,
+            _components.get('db')
+        ) if (_components.get('rag_system') and _components.get('db')) else None
+    )(__import__('src.limits', fromlist=['UserLimits']).UserLimits)
 ))
 
 _components.register('email_service', LazyLoader(
     'Email Service',
-    lambda: get_email_service()
+    lambda: __import__('src.email_service', fromlist=['get_email_service']).get_email_service()
 ))
 
 _components.register('analytics', LazyLoader(
     'Analytics',
-    lambda: get_analytics_service()
+    lambda: __import__('src.analytics', fromlist=['get_analytics_service']).get_analytics_service()
 ))
 
 _components.register('password_reset', LazyLoader(
     'Password Reset',
-    lambda: PasswordResetService(
-        _components.get('rag_system').cache if _components.get('rag_system') else None
-    ) if _components.get('rag_system') else None
+    lambda: (
+        lambda PRS: PRS(
+            _components.get('rag_system').cache if _components.get('rag_system') else None
+        ) if _components.get('rag_system') else None
+    )(__import__('src.auth.password_reset', fromlist=['PasswordResetService']).PasswordResetService)
 ))
 
 # Backward compatibility - proxy objects that lazy-load on attribute access
