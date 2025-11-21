@@ -5,68 +5,50 @@ import toast from 'react-hot-toast'
 export default function DownloadHistory() {
     const { messages } = useChatStore()
 
-    const downloadAsJSON = () => {
-        try {
-            const data = {
-                exported_at: new Date().toISOString(),
-                message_count: messages.length,
-                messages: messages.map(msg => ({
-                    id: msg.id,
-                    role: msg.role,
-                    content: msg.content,
-                    timestamp: msg.timestamp || new Date().toISOString(),
-                    sources: msg.sources || null
-                }))
-            }
-
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `chat-history-${new Date().toISOString().split('T')[0]}.json`
-            document.body.appendChild(a)
-            a.click()
-            document.body.removeChild(a)
-            URL.revokeObjectURL(url)
-
-            toast.success('Chat history downloaded as JSON')
-        } catch (error) {
-            // Error logged server-side only
-            toast.error('Failed to download chat history')
-        }
-    }
-
     const downloadAsText = () => {
         try {
             let text = `DokGuru Voice - Chat History\n`
             text += `Exported: ${new Date().toLocaleString()}\n`
-            text += `Total Messages: ${messages.length}\n`
-            text += `${'='.repeat(60)}\n\n`
+            text += `${'='.repeat(70)}\n\n`
 
-            messages.forEach((msg, index) => {
-                text += `[${index + 1}] ${msg.role.toUpperCase()}\n`
-                text += `Time: ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'N/A'}\n`
-                text += `${'-'.repeat(60)}\n`
-                text += `${msg.content}\n`
+            // Group messages into Q&A pairs
+            let questionCount = 0
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i]
 
-                if (msg.sources && msg.sources.length > 0) {
-                    text += `\nSources: ${msg.sources.map(s => `Page ${s.page}`).join(', ')}\n`
+                if (msg.role === 'user') {
+                    questionCount++
+                    text += `Q${questionCount}: ${msg.content}\n\n`
+
+                    // Check if next message is assistant's response
+                    if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
+                        const answer = messages[i + 1]
+                        text += `A${questionCount}: ${answer.content}\n`
+
+                        // Add sources if available
+                        if (answer.sources && answer.sources.length > 0) {
+                            text += `\nSources: ${answer.sources.map(s => `Page ${s.page}`).join(', ')}\n`
+                        }
+
+                        text += `\n${'-'.repeat(70)}\n\n`
+                        i++ // Skip the assistant message since we already processed it
+                    } else {
+                        text += `A${questionCount}: [No response yet]\n\n${'-'.repeat(70)}\n\n`
+                    }
                 }
-
-                text += `\n${'='.repeat(60)}\n\n`
-            })
+            }
 
             const blob = new Blob([text], { type: 'text/plain' })
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`
+            a.download = `dokguru-chat-${new Date().toISOString().split('T')[0]}.txt`
             document.body.appendChild(a)
             a.click()
             document.body.removeChild(a)
             URL.revokeObjectURL(url)
 
-            toast.success('Chat history downloaded as text')
+            toast.success('Chat history downloaded successfully')
         } catch (error) {
             // Error logged server-side only
             toast.error('Failed to download chat history')
@@ -75,9 +57,26 @@ export default function DownloadHistory() {
 
     const copyToClipboard = async () => {
         try {
-            let text = messages.map((msg, index) => {
-                return `[${index + 1}] ${msg.role.toUpperCase()}: ${msg.content}`
-            }).join('\n\n')
+            let text = ''
+
+            // Group messages into Q&A pairs
+            let questionCount = 0
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i]
+
+                if (msg.role === 'user') {
+                    questionCount++
+                    text += `Q${questionCount}: ${msg.content}\n\n`
+
+                    // Check if next message is assistant's response
+                    if (i + 1 < messages.length && messages[i + 1].role === 'assistant') {
+                        const answer = messages[i + 1]
+                        text += `A${questionCount}: ${answer.content}\n\n`
+                        text += `${'-'.repeat(50)}\n\n`
+                        i++ // Skip the assistant message since we already processed it
+                    }
+                }
+            }
 
             await navigator.clipboard.writeText(text)
             toast.success('Chat history copied to clipboard')
@@ -116,36 +115,20 @@ export default function DownloadHistory() {
 
             {/* Download Options */}
             <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Download as JSON */}
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={downloadAsJSON}
-                        className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 hover:from-cyan-500/20 hover:to-blue-500/20 border border-cyan-500/20 rounded-xl transition-all"
-                    >
-                        <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        <div className="text-center">
-                            <p className="text-sm font-semibold text-white">JSON Format</p>
-                            <p className="text-xs text-gray-400">Structured data</p>
-                        </div>
-                    </motion.button>
-
-                    {/* Download as Text */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Download as Text File */}
                     <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={downloadAsText}
-                        className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/20 rounded-xl transition-all"
+                        className="flex items-center justify-center gap-3 p-5 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/20 rounded-xl transition-all group"
                     >
-                        <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg className="w-10 h-10 text-purple-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <div className="text-center">
-                            <p className="text-sm font-semibold text-white">Text Format</p>
-                            <p className="text-xs text-gray-400">Plain readable</p>
+                        <div className="text-left">
+                            <p className="text-base font-semibold text-white">Download Chat</p>
+                            <p className="text-sm text-gray-400">Save as Q&A text file</p>
                         </div>
                     </motion.button>
 
@@ -154,16 +137,27 @@ export default function DownloadHistory() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={copyToClipboard}
-                        className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-500/20 rounded-xl transition-all"
+                        className="flex items-center justify-center gap-3 p-5 bg-gradient-to-br from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-500/20 rounded-xl transition-all group"
                     >
-                        <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-10 h-10 text-green-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        <div className="text-center">
-                            <p className="text-sm font-semibold text-white">Copy Text</p>
-                            <p className="text-xs text-gray-400">To clipboard</p>
+                        <div className="text-left">
+                            <p className="text-base font-semibold text-white">Copy to Clipboard</p>
+                            <p className="text-sm text-gray-400">Quick paste anywhere</p>
                         </div>
                     </motion.button>
+                </div>
+
+                {/* Format Example */}
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-gray-300 mb-2">Export Format:</p>
+                    <div className="text-xs text-gray-400 font-mono space-y-1">
+                        <p>Q1: Your question here</p>
+                        <p>A1: AI's response here</p>
+                        <p className="text-gray-600">--------------------------------------</p>
+                        <p>Q2: Next question...</p>
+                    </div>
                 </div>
 
                 {/* Info */}
@@ -172,8 +166,8 @@ export default function DownloadHistory() {
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                     <p>
-                        Your chat history is stored locally and will be cleared when you logout or clear your conversation.
-                        Download regularly to keep a backup of important conversations.
+                        Chat history is exported as readable question-answer pairs in plain text format.
+                        Perfect for sharing, reviewing, or backing up your conversations.
                     </p>
                 </div>
             </div>
