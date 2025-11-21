@@ -23,12 +23,12 @@ sys.stderr.flush()
 
 # Worker processes
 # Render Free Tier: 0.5 GB RAM - use fewer workers to avoid OOM
-# For I/O-bound apps like this (waiting for LLM/DB), use 1 worker initially for faster startup
-# Can be increased via GUNICORN_WORKERS env var after successful deployment
+# For I/O-bound apps like this (waiting for LLM/DB), use gthread worker with more threads
+# This allows better concurrency for I/O-bound operations without high memory usage
 workers = int(os.getenv('GUNICORN_WORKERS', '1'))  # Start with 1 worker for reliable deployment
-worker_class = 'sync'
+worker_class = 'gthread'  # Use gthread for better I/O concurrency
 worker_connections = 1000
-threads = 4  # Allows 4 concurrent requests (1 worker × 4 threads)
+threads = int(os.getenv('GUNICORN_THREADS', '8'))  # Increase to 8 threads for better concurrency (1 worker × 8 threads = 8 concurrent requests)
 timeout = 300  # 5 minutes for ML model loading, PDF processing and LLM responses
 keepalive = 5
 

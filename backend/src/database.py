@@ -6,7 +6,6 @@ from supabase import create_client, Client
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import threading
-import httpx
 
 load_dotenv()
 
@@ -34,23 +33,11 @@ def get_supabase_client() -> Client:
 
     # Each thread gets its own client instance
     if not hasattr(_thread_local, 'supabase_client') or _thread_local.supabase_client is None:
-        # Configure httpx client with increased timeouts to prevent "read operation timed out" errors
-        # This is especially important for cold starts and high-latency network conditions
-        timeout = httpx.Timeout(
-            connect=10.0,  # Time to establish connection
-            read=30.0,     # Time to read response (increased from default ~5s)
-            write=10.0,    # Time to send request
-            pool=10.0      # Time to acquire connection from pool
-        )
-
-        http_client = httpx.Client(timeout=timeout)
-
+        # Create Supabase client with increased timeout for cold starts and slow connections
+        # Using default configuration - Supabase client handles timeouts internally
         _thread_local.supabase_client = create_client(
             _supabase_config['url'],
-            _supabase_config['key'],
-            options={
-                'http_client': http_client
-            }
+            _supabase_config['key']
         )
 
     return _thread_local.supabase_client
