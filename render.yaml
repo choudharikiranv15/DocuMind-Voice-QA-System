@@ -6,6 +6,16 @@ services:
     plan: free
     branch: main
     rootDir: backend
+    # Only deploy when backend files change
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+      ignoredPaths:
+        - frontend/**
+        - "*.md"
+        - docs/**
+        - img/**
     buildCommand: pip install -r requirements-production.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT app_minimal:app -c gunicorn.conf.py
     envVars:
