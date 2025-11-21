@@ -51,7 +51,7 @@ function MainApp() {
                                     </svg>
                                 </div>
                                 <h1 className="text-xl font-bold text-white">
-                                    Doc<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
+                                    Dok<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
                                 </h1>
                             </div>
                         </div>

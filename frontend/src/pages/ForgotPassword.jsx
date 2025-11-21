@@ -153,7 +153,7 @@ export default function ForgotPassword() {
             </svg>
           </div>
           <span className="text-2xl font-bold text-white">
-            Doc<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
+            Dok<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">Guru</span>
           </span>
         </motion.div>
 
