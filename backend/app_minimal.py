@@ -3,6 +3,7 @@ Minimal Flask app wrapper for INSTANT startup on Render
 This app starts immediately and proxies to the real app once it's loaded
 """
 from flask import Flask, jsonify
+from flask_cors import CORS
 import os
 import threading
 import time
@@ -10,6 +11,19 @@ import time
 # Create minimal Flask app IMMEDIATELY
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'temp-key-for-startup')
+
+# Configure CORS immediately for health checks and proxied requests
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000,https://dokguru.vercel.app').split(',')
+CORS(app, resources={
+    r"/*": {
+        "origins": cors_origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
+        "expose_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True,
+        "max_age": 3600
+    }
+})
 
 # Status tracking
 _real_app_loaded = False
@@ -90,15 +104,12 @@ def status():
     })
 
 
-# Proxy all other requests to real app once loaded
-@app.before_request
-def proxy_to_real_app():
-    """Proxy requests to real app once it's loaded"""
-    from flask import request
-
-    # Allow health and status checks even if real app not loaded
-    if request.path in ['/health', '/status']:
-        return None
+# Catch-all route to proxy to real app or show loading message
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
+def catch_all(path):
+    """Proxy all requests to real app once loaded"""
+    from flask import request, Response
 
     # If real app not loaded yet, return loading message
     if not _real_app_loaded:
@@ -106,19 +117,46 @@ def proxy_to_real_app():
             return jsonify({
                 'success': False,
                 'message': 'Application failed to load',
-                'error': _load_error
+                'error': str(_load_error),
+                'path': request.path
             }), 503
         else:
             elapsed = time.time() - _load_start_time if _load_start_time else 0
             return jsonify({
                 'success': False,
                 'message': f'Application still loading... ({elapsed:.0f}s elapsed)',
-                'retry_after': 30
+                'retry_after': 30,
+                'path': request.path
             }), 503
 
-    # Real app is loaded, let it handle the request
-    # This is done by Flask automatically since we imported the routes
-    return None
+    # Real app is loaded - dispatch request to it
+    try:
+        with _real_app.test_request_context(request.path, method=request.method,
+                                           headers=dict(request.headers),
+                                           data=request.get_data(),
+                                           query_string=request.query_string):
+            try:
+                rv = _real_app.preprocess_request()
+                if rv is None:
+                    rv = _real_app.dispatch_request()
+            except Exception as e:
+                rv = _real_app.handle_user_exception(e)
+
+            response = _real_app.make_response(rv)
+            response = _real_app.process_response(response)
+
+            # Convert to Response object for minimal app
+            return Response(
+                response.get_data(),
+                status=response.status_code,
+                headers=dict(response.headers)
+            )
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error proxying request: {str(e)}',
+            'path': request.path
+        }), 500
 
 
 # Print startup message

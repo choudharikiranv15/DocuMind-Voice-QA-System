@@ -40,7 +40,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: http://localhost:5173,http://localhost:3000
+        value: http://localhost:5173,http://localhost:3000,https://dokguru.vercel.app
     disk:
       name: data
       mountPath: /opt/render/project/src/data
