@@ -1,12 +1,7 @@
 {
-  "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": "vite",
-  "installCommand": "cd frontend && npm install",
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "ignoreCommand": "if git diff --quiet 'HEAD^' 'HEAD' -- ./frontend; then echo 'No frontend changes'; exit 0; else echo 'Frontend changed'; exit 1; fi"
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "cwd": "frontend"
 }
