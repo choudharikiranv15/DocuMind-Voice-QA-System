@@ -1159,16 +1159,16 @@ export default function Landing() {
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/about#use-cases" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Use Cases</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/about#roadmap" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Roadmap</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                 </ul>
                             </div>
@@ -1196,16 +1196,16 @@ export default function Landing() {
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/contact#faq" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>FAQs</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/contact" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Community</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                 </ul>
                             </div>
@@ -1215,28 +1215,28 @@ export default function Landing() {
                                 <h4 className="text-white font-semibold mb-4 text-sm">Legal</h4>
                                 <ul className="space-y-3">
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/privacy-policy" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Privacy Policy</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/terms-of-service" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Terms of Service</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/privacy-policy#security" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>Security</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
-                                        <a href="#" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
+                                        <Link to="/privacy-policy#gdpr" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
                                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                                             <span>GDPR</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                     <li>
                                         <a href="https://github.com/choudharikiranv15/DocuMind-Voice-QA-System/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2 group">
