@@ -456,7 +456,7 @@ def signup():
         # Check if user already exists
         existing_user = db.get_user_by_email(email)
         if existing_user:
-            return jsonify({'success': False, 'message': 'User already exists'}), 400
+            return jsonify({'success': False, 'message': 'An account with this email already exists. Please log in instead.'}), 400
 
         # Hash password
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -487,7 +487,7 @@ def signup():
     except Exception as e:
         logger.error(f"Signup error: {str(e)}")
         capture_exception(e, {'endpoint': 'signup'})
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': 'An error occurred while creating your account. Please try again.'}), 500
 
 
 @app.route('/auth/login', methods=['GET', 'POST', 'OPTIONS'])
@@ -548,7 +548,7 @@ def login():
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         capture_exception(e, {'endpoint': 'login'})
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': 'An error occurred during login. Please try again.'}), 500
 
 
 @app.route('/auth/me', methods=['GET'])
@@ -573,7 +573,7 @@ def get_current_user():
 
     except Exception as e:
         logger.error(f"Get user error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': 'An error occurred while fetching user information. Please try again.'}), 500
 
 
 @app.route('/auth/forgot-password', methods=['POST'])
@@ -869,7 +869,7 @@ def submit_feedback():
     except Exception as e:
         logger.error(f"Feedback error: {str(e)}")
         capture_exception(e, {'endpoint': 'feedback'})
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': 'An error occurred while submitting feedback. Please try again.'}), 500
 
 
 # ============= USER STATS ENDPOINT =============

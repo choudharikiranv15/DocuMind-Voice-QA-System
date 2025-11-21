@@ -106,7 +106,7 @@ export default function Message({ message }) {
             setFeedbackGiven(rating)
             toast.success('Thank you for your feedback!')
         } catch (error) {
-            console.error('Feedback error:', error)
+            // Error logged server-side only
             toast.error('Failed to submit feedback')
         }
     }

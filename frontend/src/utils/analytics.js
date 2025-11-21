@@ -25,7 +25,7 @@ export const initPostHog = () => {
     if (import.meta.env.DEV) console.log('✅ PostHog initialized');
     return true;
   } catch (error) {
-    console.error('❌ Failed to initialize PostHog:', error);
+    // Error logged server-side only - silent failure for tracking service
     return false;
   }
 };

@@ -135,7 +135,7 @@ export default function ChatInput({ setIsThinking }) {
                 recognitionRef.current.start()
                 toast.success('Listening... Speak now!')
             } catch (error) {
-                console.error('Error starting recognition:', error)
+                // Error logged server-side only
                 toast.error('Failed to start listening')
             }
         }

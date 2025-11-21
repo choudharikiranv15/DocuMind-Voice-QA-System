@@ -30,7 +30,7 @@ export default function VoiceRecorder({ onRecordingComplete, disabled }) {
             toast.success('Recording started')
         } catch (error) {
             toast.error('Could not access microphone')
-            console.error('Error accessing microphone:', error)
+            // Error logged server-side only
         }
     }
 

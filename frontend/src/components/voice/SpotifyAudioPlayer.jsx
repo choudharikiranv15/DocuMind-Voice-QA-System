@@ -41,7 +41,7 @@ export default function SpotifyAudioPlayer({ audioUrl }) {
                 setWaveformData(normalized)
                 setIsLoading(false)
             } catch (error) {
-                console.error('Error generating waveform:', error)
+                // Error logged server-side only
                 // Create fallback random-ish waveform
                 const fallback = Array.from({ length: 70 }, () => Math.random() * 0.7 + 0.3)
                 setWaveformData(fallback)

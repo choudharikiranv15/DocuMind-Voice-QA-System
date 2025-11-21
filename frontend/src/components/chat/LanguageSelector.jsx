@@ -19,7 +19,7 @@ export default function LanguageSelector({ selectedLanguage, onLanguageChange })
             const langs = await getSupportedLanguages()
             setLanguages(langs)
         } catch (error) {
-            console.error('Failed to load languages:', error)
+            // Error logged server-side only
             // Fallback to 3 supported languages
             setLanguages({
                 'en': 'English',

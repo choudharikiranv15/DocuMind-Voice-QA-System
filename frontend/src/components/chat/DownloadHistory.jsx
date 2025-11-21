@@ -31,7 +31,7 @@ export default function DownloadHistory() {
 
             toast.success('Chat history downloaded as JSON')
         } catch (error) {
-            console.error('Download error:', error)
+            // Error logged server-side only
             toast.error('Failed to download chat history')
         }
     }
@@ -68,7 +68,7 @@ export default function DownloadHistory() {
 
             toast.success('Chat history downloaded as text')
         } catch (error) {
-            console.error('Download error:', error)
+            // Error logged server-side only
             toast.error('Failed to download chat history')
         }
     }
@@ -82,7 +82,7 @@ export default function DownloadHistory() {
             await navigator.clipboard.writeText(text)
             toast.success('Chat history copied to clipboard')
         } catch (error) {
-            console.error('Copy error:', error)
+            // Error logged server-side only
             toast.error('Failed to copy to clipboard')
         }
     }

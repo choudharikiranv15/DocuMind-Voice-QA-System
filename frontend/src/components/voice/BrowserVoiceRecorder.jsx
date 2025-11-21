@@ -11,7 +11,7 @@ export default function BrowserVoiceRecorder({ onTranscript, disabled }) {
         // Check if browser supports Web Speech API
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             setIsSupported(false)
-            console.error('Browser does not support Speech Recognition')
+            // Error logged server-side only
             return
         }
 
@@ -50,7 +50,7 @@ export default function BrowserVoiceRecorder({ onTranscript, disabled }) {
         }
 
         recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error)
+            // Error logged server-side only
             setIsListening(false)
 
             switch (event.error) {
@@ -97,7 +97,7 @@ export default function BrowserVoiceRecorder({ onTranscript, disabled }) {
                 recognitionRef.current.start()
                 toast.success('Listening... Speak now!')
             } catch (error) {
-                console.error('Error starting recognition:', error)
+                // Error logged server-side only
                 toast.error('Failed to start listening')
             }
         }

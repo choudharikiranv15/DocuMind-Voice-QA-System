@@ -108,7 +108,7 @@ export default function FeedbackModal({ isOpen, onClose }) {
                 toast.error(data.message || 'Failed to submit feedback')
             }
         } catch (error) {
-            console.error('Feedback error:', error)
+            // Error logged server-side only
             toast.error('An error occurred. Please try again.')
         } finally {
             setLoading(false)

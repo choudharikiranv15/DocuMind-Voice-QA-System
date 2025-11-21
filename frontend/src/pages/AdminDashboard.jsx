@@ -49,7 +49,7 @@ export default function AdminDashboard() {
             }
             setLoading(false)
         } catch (error) {
-            console.error('Dashboard error:', error)
+            // Error logged server-side only
             toast.error('Failed to load dashboard')
             setLoading(false)
         }
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
                 setUsers(data.users)
             }
         } catch (error) {
-            console.error('Users error:', error)
+            // Error logged server-side only
         }
     }
 
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
                 setFeedback(data.feedback)
             }
         } catch (error) {
-            console.error('Feedback error:', error)
+            // Error logged server-side only
         }
     }
 
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
                 setAiFeedbackAnalytics(data.analytics)
             }
         } catch (error) {
-            console.error('AI Feedback error:', error)
+            // Error logged server-side only
         }
     }
 

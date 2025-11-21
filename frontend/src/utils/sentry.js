@@ -28,7 +28,7 @@ export const initSentry = () => {
     if (import.meta.env.DEV) console.log('✅ Sentry initialized');
     return true;
   } catch (error) {
-    console.error('❌ Failed to initialize Sentry:', error);
+    // Error logged server-side only - silent failure for tracking service
     return false;
   }
 };

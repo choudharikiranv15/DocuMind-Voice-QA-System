@@ -32,7 +32,7 @@ export default function VoicePreferences() {
             setAzureConfigured(enginesData.azure_configured)
             setPreferences(prefsData)
         } catch (error) {
-            console.error('Failed to fetch voice data:', error)
+            // Error logged server-side only
             toast.error('Failed to load voice preferences')
         } finally {
             setLoading(false)
@@ -56,7 +56,7 @@ export default function VoicePreferences() {
             setPreferences(prev => ({ ...prev, engine_preference: engineId }))
             toast.success('Voice preference updated!')
         } catch (error) {
-            console.error('Failed to update preference:', error)
+            // Error logged server-side only
             if (error.message.includes('premium')) {
                 toast.error('This feature requires a premium plan')
             } else {

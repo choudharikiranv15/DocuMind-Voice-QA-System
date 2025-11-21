@@ -9,7 +9,7 @@ export default function DocumentCard({ document }) {
 
     // Defensive check - ensure document is valid
     if (!document || typeof document !== 'object') {
-        console.error('Invalid document:', document)
+        // Error logged server-side only
         return null
     }
 

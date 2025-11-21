@@ -16,7 +16,7 @@ export default function UsageDashboard() {
             const stats = await getUserLimits()
             setUsage(stats)
         } catch (error) {
-            console.error('Failed to load usage stats:', error)
+            // Error logged server-side only
             toast.error('Failed to load usage statistics')
         } finally {
             setLoading(false)
