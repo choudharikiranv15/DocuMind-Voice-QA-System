@@ -1420,6 +1420,7 @@ def text_to_speech_stream():
 
 
 @app.route('/audio/<filename>', methods=['GET'])
+@limiter.exempt  # Audio files don't need rate limiting
 def serve_audio(filename):
     """Serve generated audio files (supports both WAV and MP3)"""
     try:
