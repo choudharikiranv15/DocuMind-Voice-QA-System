@@ -408,15 +408,21 @@ class Database:
             return {}
 
     def get_feedback_analytics(self) -> dict:
-        """Get feedback analytics (admin only)"""
+        """Get feedback analytics with server-side aggregation (admin only)"""
         try:
-            response = self.client.table('site_feedback').select('*').execute()
+            # Get total count (fast - no data transfer)
+            total_response = self.client.table('site_feedback').select('id', count='exact').execute()
+            total_responses = total_response.count if total_response.count else 0
+
+            # Get all feedback for detailed analytics (only needed for NPS and complex grouping)
+            # NOTE: For very large datasets (100k+ records), consider using PostgreSQL views
+            response = self.client.table('site_feedback').select('feedback_type, overall_rating, nps_score').execute()
             feedbacks = response.data if response.data else []
 
-            # Group by type
+            # Group by type (client-side, but only with minimal columns)
             by_type = {}
             by_rating = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-            total_nps = []
+            nps_scores = []
 
             for feedback in feedbacks:
                 # By type
@@ -430,20 +436,20 @@ class Database:
 
                 # NPS
                 if feedback.get('nps_score') is not None:
-                    total_nps.append(feedback['nps_score'])
+                    nps_scores.append(feedback['nps_score'])
 
             # Calculate NPS
             nps_score = 0
-            if total_nps:
-                promoters = len([s for s in total_nps if s >= 9])
-                detractors = len([s for s in total_nps if s <= 6])
-                nps_score = ((promoters - detractors) / len(total_nps)) * 100
+            if nps_scores:
+                promoters = len([s for s in nps_scores if s >= 9])
+                detractors = len([s for s in nps_scores if s <= 6])
+                nps_score = ((promoters - detractors) / len(nps_scores)) * 100
 
             return {
                 'by_type': by_type,
                 'by_rating': by_rating,
                 'nps_score': round(nps_score, 1),
-                'total_responses': len(feedbacks)
+                'total_responses': total_responses
             }
         except Exception as e:
             import logging
@@ -465,15 +471,19 @@ class Database:
             return []
 
     def get_ai_feedback_analytics(self) -> dict:
-        """Get AI response feedback analytics (admin only)"""
+        """Get AI response feedback analytics with server-side aggregation (admin only)"""
         try:
-            response = self.client.table('feedback').select('*').execute()
-            feedbacks = response.data if response.data else []
+            # Get total count (server-side)
+            total_response = self.client.table('feedback').select('id', count='exact').execute()
+            total = total_response.count if total_response.count else 0
 
-            # Count likes and dislikes
-            likes = len([f for f in feedbacks if f.get('rating') == 1])
-            dislikes = len([f for f in feedbacks if f.get('rating') == -1])
-            total = len(feedbacks)
+            # Get likes count (server-side)
+            likes_response = self.client.table('feedback').select('id', count='exact').eq('rating', 1).execute()
+            likes = likes_response.count if likes_response.count else 0
+
+            # Get dislikes count (server-side)
+            dislikes_response = self.client.table('feedback').select('id', count='exact').eq('rating', -1).execute()
+            dislikes = dislikes_response.count if dislikes_response.count else 0
 
             # Calculate satisfaction rate
             satisfaction_rate = (likes / total * 100) if total > 0 else 0

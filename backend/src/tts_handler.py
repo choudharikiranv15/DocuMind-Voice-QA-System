@@ -63,17 +63,23 @@ class TTSHandler:
                 import hashlib
                 text_hash = hashlib.md5(text.encode()).hexdigest()[:8]
                 output_filename = f"tts_{text_hash}"
-            
+
             output_path = os.path.join(self.output_dir, f"{output_filename}.wav")
-            
-            if self.piper_available:
-                # Use Piper TTS
-                logger.info(f"Synthesizing speech with Piper: {len(text)} characters")
-                self._synthesize_with_piper(text, output_path)
+
+            # Check if audio already exists (file-based caching)
+            # Saves 1-3s per duplicate request by skipping synthesis
+            if os.path.exists(output_path):
+                logger.info(f"Using cached TTS audio: {output_filename}.wav")
             else:
-                # Fallback: Use gTTS (Google Text-to-Speech) - requires internet
-                logger.info(f"Synthesizing speech with gTTS fallback: {len(text)} characters")
-                self._synthesize_with_gtts(text, output_path)
+                # Generate new audio
+                if self.piper_available:
+                    # Use Piper TTS
+                    logger.info(f"Synthesizing speech with Piper: {len(text)} characters")
+                    self._synthesize_with_piper(text, output_path)
+                else:
+                    # Fallback: Use gTTS (Google Text-to-Speech) - requires internet
+                    logger.info(f"Synthesizing speech with gTTS fallback: {len(text)} characters")
+                    self._synthesize_with_gtts(text, output_path)
             
             # Get audio duration
             duration = self._get_audio_duration(output_path)

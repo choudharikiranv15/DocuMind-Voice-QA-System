@@ -17,6 +17,7 @@ Flask-Limiter==4.0.0
 flask-talisman==1.1.0
 Flask-Compress==1.15
 gunicorn==23.0.0
+gevent==24.11.1  # Async worker for gunicorn (I/O-bound operations)
 Werkzeug==3.1.3
 
 # ==========================================

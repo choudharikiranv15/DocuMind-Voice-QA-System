@@ -183,31 +183,27 @@ class LLMHandler:
         return "CONVERSATION HISTORY:\n" + "\n".join(conversation_history[-6:])  # Last 3 exchanges
     
     def _create_prompt(self, query: str, context_text: str, conversation_context: str) -> str:
-        """Create the complete prompt"""
+        """Create the complete prompt (optimized for low token count)"""
         # Detect if question is document-specific or general knowledge
         is_document_specific = self._is_document_specific_query(query)
 
         if is_document_specific:
-            # Strict document-only mode for document-specific questions
-            prompt = f"""CONTEXT FROM DOCUMENTS:
+            # Document-only mode
+            prompt = f"""CONTEXT:
 {context_text}
 
-USER QUESTION: {query}
+QUESTION: {query}
 
-ANSWER THE QUESTION USING ONLY THE CONTEXT ABOVE. IF THE ANSWER IS NOT IN THE CONTEXT, SAY: "I cannot find this information in the uploaded document(s)."
+Answer using ONLY the context above. If not found, say: "I cannot find this information in the uploaded document(s)."
 """
         else:
-            # General knowledge mode - can use general knowledge but should reference documents if relevant
-            prompt = f"""CONTEXT FROM UPLOADED DOCUMENTS (if relevant):
+            # General knowledge mode
+            prompt = f"""CONTEXT (if relevant):
 {context_text}
 
-USER QUESTION: {query}
+QUESTION: {query}
 
-INSTRUCTIONS:
-- This is a general knowledge question
-- Answer using your general knowledge first
-- If the uploaded documents contain relevant information, you may mention it briefly at the end
-- Keep your answer concise and focused on the question
+This is a general knowledge question. Answer using your knowledge first. Reference documents only if relevant.
 """
 
         return prompt

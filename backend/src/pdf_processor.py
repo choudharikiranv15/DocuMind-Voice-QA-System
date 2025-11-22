@@ -16,6 +16,7 @@ import re
 from typing import List, Dict, Any, Tuple
 import logging
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from .advanced_table_extractor import AdvancedTableExtractor
 
 @dataclass
@@ -31,69 +32,71 @@ class PDFProcessor:
         self.logger = logging.getLogger(__name__)
         self.table_extractor = AdvancedTableExtractor()  # Use advanced table extraction
         
-    def extract_content(self, pdf_path: str) -> List[DocumentChunk]:
-        """Extract all content types from PDF"""
-        chunks = []
-        doc = None
+    def _process_single_page(self, pdf_path: str, page_num: int, total_pages: int) -> List[DocumentChunk]:
+        """Process a single page (thread-safe)"""
+        page_chunks = []
 
+        try:
+            # Open PDF in this thread (thread-safe)
+            with pdfplumber.open(pdf_path) as pdf:
+                page_plumber = pdf.pages[page_num]
+
+                # Extract text chunks
+                try:
+                    text_chunks = self._extract_text_chunks(page_plumber, page_num)
+                    page_chunks.extend(text_chunks)
+                    self.logger.info(f"[{page_num + 1}/{total_pages}] Extracted {len(text_chunks)} text chunks")
+                except Exception as e:
+                    self.logger.error(f"Error extracting text from page {page_num + 1}: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error processing page {page_num + 1}: {e}")
+
+        return page_chunks
+
+    def extract_content(self, pdf_path: str) -> List[DocumentChunk]:
+        """Extract all content types from PDF with parallel processing"""
         try:
             self.logger.info(f"Opening PDF: {pdf_path}")
 
-            # Process with pdfplumber for tables and structured text
+            # Get total pages
             with pdfplumber.open(pdf_path) as pdf:
                 total_pages = len(pdf.pages)
-                self.logger.info(f"Processing {total_pages} pages")
 
-                # Only open PyMuPDF if available (for image extraction)
-                if HAS_PYMUPDF:
-                    doc = fitz.open(pdf_path)
+            self.logger.info(f"Processing {total_pages} pages in parallel (max 4 workers)")
 
-                for page_num in range(total_pages):
+            # Process pages in parallel (max 4 workers to avoid overwhelming CPU)
+            all_chunks = []
+            max_workers = min(4, total_pages)  # Don't use more workers than pages
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all page processing tasks
+                future_to_page = {
+                    executor.submit(self._process_single_page, pdf_path, page_num, total_pages): page_num
+                    for page_num in range(total_pages)
+                }
+
+                # Collect results as they complete
+                results = {}
+                for future in as_completed(future_to_page):
+                    page_num = future_to_page[future]
                     try:
-                        self.logger.info(f"Processing page {page_num + 1}/{total_pages}")
-                        page_plumber = pdf.pages[page_num]
-                        page_fitz = doc[page_num] if HAS_PYMUPDF and doc else None
-                        
-                        # Extract text chunks
-                        try:
-                            text_chunks = self._extract_text_chunks(page_plumber, page_num)
-                            chunks.extend(text_chunks)
-                            self.logger.info(f"Extracted {len(text_chunks)} text chunks from page {page_num + 1}")
-                        except Exception as e:
-                            self.logger.error(f"Error extracting text from page {page_num + 1}: {e}")
-                        
-                        # SKIP table extraction for production speed (tables often extract as garbage)
-                        # If you need table extraction, enable the line below and test thoroughly
-                        # try:
-                        #     table_chunks = self._extract_table_chunks_fast(page_plumber, page_num)
-                        #     chunks.extend(table_chunks)
-                        #     self.logger.info(f"Extracted {len(table_chunks)} table chunks from page {page_num + 1}")
-                        # except Exception as e:
-                        #     self.logger.error(f"Error extracting tables from page {page_num + 1}: {e}")
-                        
-                        # SKIP image extraction for production speed (images slow down processing significantly)
-                        # If you need image extraction, enable the line below
-                        # try:
-                        #     image_chunks = self._extract_image_chunks(page_fitz, page_num)
-                        #     chunks.extend(image_chunks)
-                        #     self.logger.info(f"Extracted {len(image_chunks)} image chunks from page {page_num + 1}")
-                        # except Exception as e:
-                        #     self.logger.error(f"Error extracting images from page {page_num + 1}: {e}")
-                            
+                        page_chunks = future.result()
+                        results[page_num] = page_chunks
                     except Exception as e:
-                        self.logger.error(f"Error processing page {page_num + 1}: {e}")
-                        continue
-            
-            self.logger.info(f"Total chunks extracted: {len(chunks)}")
-            
+                        self.logger.error(f"Page {page_num + 1} processing failed: {e}")
+                        results[page_num] = []
+
+                # Combine results in page order
+                for page_num in sorted(results.keys()):
+                    all_chunks.extend(results[page_num])
+
+            self.logger.info(f"Total chunks extracted: {len(all_chunks)}")
+            return all_chunks
+
         except Exception as e:
             self.logger.error(f"Critical error processing PDF {pdf_path}: {e}")
             raise
-        finally:
-            if doc:
-                doc.close()
-                
-        return chunks
     
     def _extract_text_chunks(self, page, page_num: int) -> List[DocumentChunk]:
         """Extract and chunk text content"""

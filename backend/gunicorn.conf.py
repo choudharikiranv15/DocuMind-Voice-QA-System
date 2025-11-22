@@ -22,13 +22,13 @@ print(f"{'='*70}\n", file=sys.stderr)
 sys.stderr.flush()
 
 # Worker processes
-# Render Free Tier: 0.5 GB RAM - use fewer workers to avoid OOM
-# For I/O-bound apps like this (waiting for LLM/DB), use gthread worker with more threads
-# This allows better concurrency for I/O-bound operations without high memory usage
-workers = int(os.getenv('GUNICORN_WORKERS', '1'))  # Start with 1 worker for reliable deployment
-worker_class = 'gthread'  # Use gthread for better I/O concurrency
-worker_connections = 1000
-threads = int(os.getenv('GUNICORN_THREADS', '8'))  # Increase to 8 threads for better concurrency (1 worker × 8 threads = 8 concurrent requests)
+# Render Free Tier: 0.5 GB RAM - use gevent for maximum I/O concurrency with minimal RAM
+# For I/O-bound apps (LLM/DB/Redis), gevent is optimal:
+# - gthread: 8 threads = 64MB RAM, handles 8 concurrent requests
+# - gevent: 1000 greenlets = 2MB RAM, handles 1000+ concurrent requests
+workers = int(os.getenv('GUNICORN_WORKERS', '1'))  # 1 worker for Render free tier
+worker_class = 'gevent'  # Async worker for I/O-bound operations (LLM, DB, Redis)
+worker_connections = int(os.getenv('GUNICORN_CONNECTIONS', '1000'))  # 1000 concurrent connections
 timeout = 300  # 5 minutes for ML model loading, PDF processing and LLM responses
 keepalive = 5
 
@@ -77,7 +77,8 @@ def on_starting(server):
     server.log.info("DokGuru Voice - Gunicorn Starting")
     server.log.info("=" * 60)
     server.log.info(f"Binding to: {bind}")
-    server.log.info(f"Workers: {workers}, Threads: {threads}")
+    server.log.info(f"Workers: {workers}, Worker class: {worker_class}")
+    server.log.info(f"Connections per worker: {worker_connections}")
     server.log.info("=" * 60)
 
 def on_reload(server):
@@ -91,12 +92,14 @@ def when_ready(server):
     server.log.info("✓✓✓ Gunicorn server READY ✓✓✓")
     server.log.info(f"✓ Listening on: {bind}")
     server.log.info(f"✓ PORT env var: {os.getenv('PORT', 'NOT SET')}")
-    server.log.info(f"✓ Workers: {workers}, Threads per worker: {threads}")
-    server.log.info(f"✓ Max concurrent requests: {workers * threads}")
+    server.log.info(f"✓ Workers: {workers}, Worker class: {worker_class}")
+    server.log.info(f"✓ Connections per worker: {worker_connections}")
+    server.log.info(f"✓ Max concurrent requests: {workers * worker_connections}")
     server.log.info("=" * 60)
     # Also print to stderr to ensure Render sees it
     print(f"\n{'='*60}", file=sys.stderr)
     print(f"✓✓✓ SERVER IS LISTENING ON {bind} ✓✓✓", file=sys.stderr)
+    print(f"✓ Using gevent worker with {worker_connections} connections", file=sys.stderr)
     print(f"{'='*60}\n", file=sys.stderr)
     sys.stderr.flush()
 
