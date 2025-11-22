@@ -95,6 +95,56 @@ export const textToSpeech = async (text, language = 'auto') => {
     return response.data
 }
 
+// Streaming TTS - Returns blob URL for immediate playback
+export const textToSpeechStreaming = async (text, language = 'auto') => {
+    const authStorage = localStorage.getItem('auth-storage')
+    let token = null
+
+    if (authStorage) {
+        try {
+            const authData = JSON.parse(authStorage)
+            if (authData.state && authData.state.token) {
+                token = authData.state.token
+            }
+        } catch (error) {
+            throw new Error('Authentication required')
+        }
+    }
+
+    if (!token) {
+        throw new Error('Authentication required for streaming TTS')
+    }
+
+    const response = await fetch(`${API_BASE_URL}/speak/stream`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            text,
+            language
+        })
+    })
+
+    if (!response.ok) {
+        throw new Error('Streaming TTS failed')
+    }
+
+    // Get the streaming audio blob
+    const blob = await response.blob()
+
+    // Create object URL for immediate playback
+    const audioUrl = URL.createObjectURL(blob)
+
+    return {
+        audioUrl,
+        blob,
+        // Cleanup function to revoke object URL
+        cleanup: () => URL.revokeObjectURL(audioUrl)
+    }
+}
+
 // Document Management APIs
 export const listDocuments = async () => {
     const response = await api.get('/documents')
