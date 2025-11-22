@@ -64,6 +64,7 @@ pytz==2024.2
 bcrypt==4.3.0
 cryptography==44.0.3
 python-magic==0.4.27
+mutagen==1.47.0  # Audio metadata (for MP3 duration in EdgeTTS)
 
 # ==========================================
 # ADDITIONAL UTILITIES

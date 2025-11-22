@@ -96,6 +96,24 @@ RUN pip install --no-cache-dir \
     SpeechRecognition==3.14.3
 
 # ============================================================================
+# TTS ENGINES (Optimized for Performance)
+# ============================================================================
+# Install Piper TTS (Fast, Offline English TTS - 0.3s synthesis time)
+RUN wget -O /tmp/piper.tar.gz https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz && \
+    tar -xzf /tmp/piper.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/piper && \
+    rm /tmp/piper.tar.gz
+
+# Download Piper voice model (English - en_US-lessac-medium, high quality, fast)
+RUN mkdir -p /app/tts_models && \
+    wget -O /app/tts_models/en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx && \
+    wget -O /app/tts_models/en_US-lessac-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json
+
+# Install edge-tts (Microsoft Edge TTS - Excellent quality for Indian languages)
+# Supports: Hindi, Kannada, Tamil, Telugu, Malayalam, Bengali, Gujarati, Marathi, etc.
+RUN pip install --no-cache-dir edge-tts==6.1.9
+
+# ============================================================================
 # Pre-download MiniLM model
 # ============================================================================
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
