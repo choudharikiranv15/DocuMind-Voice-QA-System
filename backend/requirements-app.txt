@@ -1,0 +1,73 @@
+# ==========================================
+# DokGuru Voice - APPLICATION DEPENDENCIES
+# ==========================================
+# These are LIGHTWEIGHT dependencies for the application layer
+# Installed on top of the base image for fast builds
+#
+# These change more frequently than base dependencies
+# ==========================================
+
+# ==========================================
+# WEB FRAMEWORK
+# ==========================================
+Flask==3.1.0
+flask-cors==5.0.1
+Flask-JWT-Extended==4.7.1
+Flask-Limiter==4.0.0
+flask-talisman==1.1.0
+Flask-Compress==1.15
+gunicorn==23.0.0
+Werkzeug==3.1.3
+
+# ==========================================
+# DATABASE & ORM
+# ==========================================
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.41
+supabase==2.24.0
+postgrest==2.24.0
+realtime==2.24.0
+storage3==2.24.0
+supabase-auth==2.24.0
+supabase-functions==2.24.0
+
+# ==========================================
+# REDIS & CACHING
+# ==========================================
+redis==7.0.1
+hiredis==3.3.0
+upstash-redis==1.5.0
+limits==5.6.0
+
+# ==========================================
+# MONITORING & ANALYTICS
+# ==========================================
+sentry-sdk==2.44.0
+posthog==3.25.0
+
+# ==========================================
+# EMAIL SERVICE
+# ==========================================
+resend==2.19.0
+
+# ==========================================
+# UTILITIES
+# ==========================================
+python-dotenv==1.1.1
+requests==2.32.5
+httpx==0.27.2
+pydantic==2.11.9
+pydantic-settings==2.10.1
+python-dateutil==2.8.2
+pytz==2024.2
+bcrypt==4.3.0
+cryptography==44.0.3
+python-magic==0.4.27
+
+# ==========================================
+# ADDITIONAL UTILITIES
+# ==========================================
+click==8.1.8
+python-multipart==0.0.20
+tenacity==8.5.0
+deprecated==1.3.1

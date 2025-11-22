@@ -1,0 +1,179 @@
+# ============================================================================
+# DokGuru Voice - BASE IMAGE (Heavy Dependencies)
+# ============================================================================
+# This base image contains all heavy ML/AI dependencies that rarely change.
+# Build once, reuse many times to drastically reduce deployment times.
+#
+# Build time: ~25-30 minutes (ONE TIME ONLY)
+# Subsequent builds using this base: ~3-5 minutes
+#
+# To build and push this base image:
+#   docker build -f Dockerfile.base -t YOUR_DOCKERHUB_USERNAME/dokguru-base:latest .
+#   docker push YOUR_DOCKERHUB_USERNAME/dokguru-base:latest
+#
+# Replace YOUR_DOCKERHUB_USERNAME with your actual Docker Hub username
+# ============================================================================
+
+FROM python:3.11-slim
+
+LABEL maintainer="DokGuru Team"
+LABEL description="Base image with ML/AI dependencies for DokGuru Voice"
+LABEL version="1.0"
+
+# ============================================================================
+# SYSTEM DEPENDENCIES
+# ============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build essentials for compiling Python packages
+    build-essential \
+    gcc \
+    g++ \
+    # Git for cloning repositories if needed
+    git \
+    # PDF processing
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-hin \
+    tesseract-ocr-kan \
+    # Image processing
+    libopencv-dev \
+    # Audio processing
+    libsndfile1 \
+    ffmpeg \
+    # Java for tabula-py (PDF table extraction)
+    default-jre \
+    # System utilities
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================================================
+# PYTHON PACKAGE MANAGER OPTIMIZATION
+# ============================================================================
+# Upgrade pip first to latest version
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# ============================================================================
+# HEAVY ML/AI DEPENDENCIES (CORE)
+# ============================================================================
+# Install PyTorch first (largest dependency ~2GB)
+# Using CPU-only version to reduce size
+RUN pip install --no-cache-dir \
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install sentence-transformers and dependencies
+RUN pip install --no-cache-dir \
+    sentence-transformers==2.7.0 \
+    transformers==4.57.1 \
+    huggingface-hub==0.36.0 \
+    tokenizers==0.22.1
+
+# Install ChromaDB for vector storage
+RUN pip install --no-cache-dir \
+    chromadb==1.0.20
+
+# Install ML utilities
+RUN pip install --no-cache-dir \
+    numpy==1.26.4 \
+    pandas==2.3.3 \
+    scikit-learn==1.7.2 \
+    scipy==1.16.3
+
+# ============================================================================
+# TEXT-TO-SPEECH ENGINES (ALL INCLUDED)
+# ============================================================================
+
+# 1. gTTS - Lightweight, primary TTS (Google)
+RUN pip install --no-cache-dir \
+    gTTS==2.5.4
+
+# 2. Azure Cognitive Services Speech SDK - Premium quality
+RUN pip install --no-cache-dir \
+    azure-cognitiveservices-speech==1.47.0
+
+# 3. Coqui TTS - High quality neural TTS (OPTIONAL - Can be commented out to save space)
+# WARNING: This is LARGE (~500MB) and can be disabled if you only use gTTS + Azure
+RUN pip install --no-cache-dir \
+    TTS==0.22.0
+
+# Audio processing for TTS
+RUN pip install --no-cache-dir \
+    pydub==0.25.1 \
+    soundfile==0.13.1 \
+    librosa==0.10.2.post1
+
+# ============================================================================
+# PDF PROCESSING LIBRARIES
+# ============================================================================
+# Install pdfplumber first (it will install compatible pdfminer.six version)
+RUN pip install --no-cache-dir \
+    pdfplumber==0.10.3
+
+# Then install other PDF libraries
+RUN pip install --no-cache-dir \
+    pypdf==3.17.4 \
+    PyMuPDF==1.23.8 \
+    tabula-py==2.10.0 \
+    pytesseract==0.3.10
+
+# Image processing for PDF extraction
+RUN pip install --no-cache-dir \
+    Pillow==10.4.0 \
+    opencv-python-headless==4.11.0.86
+
+# ============================================================================
+# LLM API CLIENT LIBRARIES
+# ============================================================================
+RUN pip install --no-cache-dir \
+    groq==0.4.1 \
+    openai==1.108.1 \
+    google-generativeai==0.8.5 \
+    anthropic==0.72.0
+
+# ============================================================================
+# SPEECH-TO-TEXT
+# ============================================================================
+RUN pip install --no-cache-dir \
+    SpeechRecognition==3.14.3
+
+# ============================================================================
+# PRE-DOWNLOAD ML MODELS (Optional - reduces runtime startup)
+# ============================================================================
+# Download sentence-transformers model at build time
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+# Pre-download Coqui TTS model (OPTIONAL - comment out if not using Coqui)
+# This saves 2-3 minutes on first request but adds ~200MB to image size
+# RUN python -c "from TTS.api import TTS; TTS(model_name='tts_models/en/ljspeech/vits', progress_bar=False)"
+
+# ============================================================================
+# CLEANUP AND OPTIMIZATION
+# ============================================================================
+# Remove unnecessary files to reduce image size
+RUN pip cache purge && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache
+
+# ============================================================================
+# METADATA
+# ============================================================================
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Set working directory for subsequent builds
+WORKDIR /app
+
+# ============================================================================
+# IMAGE INFO
+# ============================================================================
+RUN echo "DokGuru Voice Base Image v1.0" > /base-image-info.txt && \
+    echo "Built on: $(date)" >> /base-image-info.txt && \
+    echo "Python: $(python --version)" >> /base-image-info.txt && \
+    echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')" >> /base-image-info.txt && \
+    echo "Sentence Transformers: $(python -c 'import sentence_transformers; print(sentence_transformers.__version__)')" >> /base-image-info.txt
+
+CMD ["python", "--version"]

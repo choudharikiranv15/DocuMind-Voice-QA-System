@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+rag_env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+rag_env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Documentation
+*.md
+docs/
+*.txt.backup
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env.backup
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+*.o
+*.a
+*.exe
+
+# Data files (these should be mounted as volumes)
+data/pdfs/*
+data/audio/*
+data/chroma_db/*
+
+# Keep directory structure
+!data/pdfs/.gitkeep
+!data/audio/.gitkeep
+!data/chroma_db/.gitkeep
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Frontend (not needed in backend image)
+frontend/
+node_modules/
+
+# Documentation
+README*.md
+CHANGELOG.md
+LICENSE
+docs/
+
+# Scripts not needed in production
+scripts/
+*.sh
+!build.sh
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Model files (download at runtime if needed)
+models/
+*.pth
+*.onnx
+*.bin
+*.safetensors
+
+# Cache
+.cache/
+*.cache
+
+# OS specific
+Thumbs.db
+.DS_Store
+desktop.ini
