@@ -165,13 +165,13 @@ class TTSHandler:
             logger.warning(f"Could not get audio duration: {str(e)}")
             return 0.0
     
-    def synthesize_streaming(self, text, chunk_size=4096):
+    def synthesize_streaming(self, text, chunk_size=8192):
         """
         Synthesize speech in streaming mode
 
         Args:
             text: Text to convert to speech
-            chunk_size: Size of audio chunks to yield (bytes)
+            chunk_size: Size of audio chunks to yield (default: 8KB, optimal for streaming)
 
         Yields:
             Audio chunks (bytes) as they're generated

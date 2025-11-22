@@ -491,7 +491,7 @@ class MultilingualTTSHandler:
                 # gTTS fallback - synthesize full file and stream chunks
                 logger.info(f"Streaming with gTTS fallback for {self.SUPPORTED_LANGUAGES.get(language, language)}")
                 result = self._synthesize_with_gtts(cleaned_text, language)
-                chunk_size = 4096
+                chunk_size = 8192  # 8KB chunks - optimal for network streaming
                 with open(result['audio_path'], 'rb') as f:
                     while True:
                         chunk = f.read(chunk_size)
