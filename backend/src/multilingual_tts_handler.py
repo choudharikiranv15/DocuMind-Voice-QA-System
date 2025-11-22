@@ -440,6 +440,69 @@ class MultilingualTTSHandler:
 
         return max(1.0, duration)  # Minimum 1 second
 
+    def synthesize_streaming(self, text: str, language: str = 'auto', engine_preference: str = 'auto'):
+        """
+        Stream audio synthesis (yields chunks as they're generated)
+
+        Args:
+            text: Text to convert to speech
+            language: Language code ('en', 'hi', 'kn', 'auto' for auto-detection)
+            engine_preference: 'auto', 'gtts', 'azure', 'coqui'
+
+        Yields:
+            Audio chunks (bytes) as they're generated
+        """
+        try:
+            if not text or len(text.strip()) == 0:
+                raise ValueError("Text cannot be empty")
+
+            # Auto-detect language if requested
+            if language == 'auto':
+                language = self.detect_language(text)
+
+            # Validate language
+            if language not in self.SUPPORTED_LANGUAGES and language != 'en':
+                logger.warning(f"Unsupported language: {language}. Defaulting to English")
+                language = 'en'
+
+            # Clean text for TTS
+            cleaned_text = self._clean_text_for_tts(text)
+
+            # Route to appropriate streaming engine
+            if language == 'en' and self.piper_available:
+                # Piper supports true streaming
+                logger.info("Streaming with Piper TTS for English")
+                for chunk in self.piper_handler.synthesize_streaming(cleaned_text):
+                    yield chunk
+
+            elif language in ['hi', 'kn', 'ta', 'te', 'ml', 'bn', 'gu', 'mr'] and self.edge_available:
+                # EdgeTTS supports streaming
+                logger.info(f"Streaming with EdgeTTS for {self.SUPPORTED_LANGUAGES.get(language, language)}")
+                for chunk in self.edge_handler.synthesize_streaming(cleaned_text, language):
+                    yield chunk
+
+            elif self.edge_available and language == 'en':
+                # EdgeTTS fallback for English
+                logger.info("Streaming with EdgeTTS for English")
+                for chunk in self.edge_handler.synthesize_streaming(cleaned_text, language):
+                    yield chunk
+
+            else:
+                # gTTS fallback - synthesize full file and stream chunks
+                logger.info(f"Streaming with gTTS fallback for {self.SUPPORTED_LANGUAGES.get(language, language)}")
+                result = self._synthesize_with_gtts(cleaned_text, language)
+                chunk_size = 4096
+                with open(result['audio_path'], 'rb') as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+
+        except Exception as e:
+            logger.error(f"Streaming TTS failed: {e}")
+            raise Exception(f"Failed to stream speech: {str(e)}")
+
     def get_supported_languages(self) -> Dict[str, str]:
         """Get list of supported languages"""
         return self.SUPPORTED_LANGUAGES.copy()

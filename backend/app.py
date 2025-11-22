@@ -1371,6 +1371,54 @@ def text_to_speech():
         logger.error(f"TTS error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/speak/stream', methods=['POST'])
+@require_auth
+def text_to_speech_stream():
+    """
+    Stream text-to-speech audio (better UX - starts playing immediately)
+
+    Benefits:
+    - User hears first words in ~0.1s instead of waiting for full synthesis
+    - Progressive playback for better perceived performance
+    - Works with Piper (true streaming) and EdgeTTS (chunked streaming)
+    """
+    try:
+        user_id = request.user_id
+        data = request.json
+        text = data.get('text', '').strip()
+        language = data.get('language', 'auto')  # 'auto', 'en', 'hi', 'kn', etc.
+
+        if not text:
+            return jsonify({'success': False, 'message': 'No text provided'}), 400
+
+        logger.info(f"Streaming TTS for {len(text)} characters (language: {language})")
+
+        # Create streaming generator
+        def generate():
+            try:
+                for chunk in tts_handler.synthesize_streaming(text, language=language):
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Streaming TTS error: {str(e)}")
+                # Can't send JSON error in middle of stream
+
+        # Return streaming response
+        from flask import Response
+        return Response(
+            generate(),
+            mimetype='audio/mpeg',  # MP3 for EdgeTTS, WAV for Piper
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Content-Type-Options': 'nosniff',
+                'Transfer-Encoding': 'chunked'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Streaming TTS setup error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/audio/<filename>', methods=['GET'])
 def serve_audio(filename):
     """Serve generated audio files (supports both WAV and MP3)"""

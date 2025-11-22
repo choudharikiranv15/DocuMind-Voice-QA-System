@@ -162,3 +162,67 @@ class EdgeTTSHandler:
     def get_voice_for_language(language: str) -> str:
         """Get recommended voice for language"""
         return EdgeTTSHandler.VOICE_MAP.get(language, 'en-US-AriaNeural')
+
+    async def _synthesize_streaming_async(self, text: str, voice: str):
+        """
+        Async streaming synthesis (EdgeTTS supports chunked streaming)
+
+        Args:
+            text: Text to synthesize
+            voice: Voice name (e.g., 'hi-IN-SwaraNeural')
+
+        Yields:
+            Audio chunks as they're generated
+        """
+        communicate = self.edge_tts.Communicate(text, voice)
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                yield chunk["data"]
+
+    def synthesize_streaming(self, text: str, language: str = 'en'):
+        """
+        Streaming synthesis (returns generator for audio chunks)
+
+        Args:
+            text: Text to convert to speech
+            language: Language code (en, hi, kn, ta, te, etc.)
+
+        Yields:
+            Audio chunks (bytes) as they're generated
+        """
+        if not self.available:
+            raise Exception("EdgeTTS not available")
+
+        try:
+            if not text or len(text.strip()) == 0:
+                raise ValueError("Text cannot be empty")
+
+            # Get voice for language
+            voice = self.VOICE_MAP.get(language, 'en-US-AriaNeural')
+
+            logger.info(f"Streaming synthesis with EdgeTTS ({voice}): {len(text)} characters")
+
+            # Create async generator and run in sync context
+            async def _generate():
+                async for chunk in self._synthesize_streaming_async(text, voice):
+                    yield chunk
+
+            # Run async generator in sync context using asyncio
+            import asyncio
+
+            async def _run_generator():
+                chunks = []
+                async for chunk in _generate():
+                    chunks.append(chunk)
+                return chunks
+
+            # Get all chunks (EdgeTTS is fast, this completes in 0.5s)
+            chunks = asyncio.run(_run_generator())
+
+            # Yield chunks to caller
+            for chunk in chunks:
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"EdgeTTS streaming error: {str(e)}")
+            raise Exception(f"Failed to stream speech with EdgeTTS: {str(e)}")

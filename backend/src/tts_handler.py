@@ -165,18 +165,61 @@ class TTSHandler:
             logger.warning(f"Could not get audio duration: {str(e)}")
             return 0.0
     
-    def synthesize_streaming(self, text):
+    def synthesize_streaming(self, text, chunk_size=4096):
         """
-        Synthesize speech in streaming mode (for future WebSocket support)
-        
+        Synthesize speech in streaming mode
+
         Args:
             text: Text to convert to speech
-        
+            chunk_size: Size of audio chunks to yield (bytes)
+
         Yields:
-            Audio chunks
+            Audio chunks (bytes) as they're generated
         """
-        # TODO: Implement streaming synthesis
-        # For now, just return the full audio
-        result = self.synthesize(text)
-        with open(result['audio_path'], 'rb') as f:
-            yield f.read()
+        if not text or len(text.strip()) == 0:
+            raise ValueError("Text cannot be empty")
+
+        try:
+            if self.piper_available:
+                # Piper can stream to stdout - yield chunks as they're generated
+                logger.info(f"Streaming synthesis with Piper: {len(text)} characters")
+
+                process = subprocess.Popen(
+                    ['piper', '--model', self.voice, '--output-raw'],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+
+                # Send text to piper and close stdin
+                process.stdin.write(text.encode('utf-8'))
+                process.stdin.close()
+
+                # Read audio chunks from stdout as they're generated
+                while True:
+                    chunk = process.stdout.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+
+                # Wait for process to complete
+                process.wait(timeout=30)
+
+                if process.returncode != 0:
+                    stderr = process.stderr.read().decode('utf-8')
+                    raise Exception(f"Piper streaming failed: {stderr}")
+
+            else:
+                # Fallback: Synthesize full file and chunk it
+                logger.info(f"Streaming with gTTS fallback: {len(text)} characters")
+                result = self.synthesize(text)
+                with open(result['audio_path'], 'rb') as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+
+        except Exception as e:
+            logger.error(f"Streaming TTS error: {str(e)}")
+            raise Exception(f"Failed to stream speech: {str(e)}")
